@@ -1,11 +1,12 @@
 "use client";
 
-import { LogOut, Upload, User } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 
 import { MobileNav } from "@/components/admin/mobile-nav";
 import { SeriesCommandTrigger } from "@/components/admin/series-command-menu";
+import { UploadDrawerTrigger } from "@/components/media/upload-drawer-trigger";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -54,12 +55,10 @@ export function AdminHeader({ title = "Dashboard" }: AdminHeaderProps) {
       <div className="flex items-center gap-2 sm:gap-3">
         <SeriesCommandTrigger />
 
-        <Button asChild size="sm">
-          <Link href="/dashboard/upload">
-            <Upload className="size-4" />
-            <span className="hidden sm:inline">Enviar mídia</span>
-          </Link>
-        </Button>
+        <UploadDrawerTrigger size="sm">
+          <span className="hidden sm:inline">Enviar mídia</span>
+          <span className="sm:hidden">Enviar</span>
+        </UploadDrawerTrigger>
 
         <NotificationBell />
 

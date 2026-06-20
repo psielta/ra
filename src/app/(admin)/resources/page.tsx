@@ -1,8 +1,5 @@
-import Link from "next/link";
-import { Upload } from "lucide-react";
-
+import { UploadDrawerTrigger } from "@/components/media/upload-drawer-trigger";
 import { ResourcesBrowser } from "@/components/media/resources-browser";
-import { Button } from "@/components/ui/button";
 
 export const metadata = {
   title: "Recursos",
@@ -19,12 +16,7 @@ export default function ResourcesPage() {
             de processamento até ficarem prontos para reprodução.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/upload">
-            <Upload className="size-4" />
-            Enviar mídia
-          </Link>
-        </Button>
+        <UploadDrawerTrigger>Enviar mídia</UploadDrawerTrigger>
       </div>
 
       <ResourcesBrowser />

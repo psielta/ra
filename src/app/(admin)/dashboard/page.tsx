@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { RecentFeed } from "@/components/dashboard/recent-feed";
+import { UploadDrawerTrigger } from "@/components/media/upload-drawer-trigger";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -42,12 +43,9 @@ export default async function DashboardPage() {
             biblioteca pessoal. MP3 e MP4 sao preparados para streaming HLS.
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
-            <Button asChild className="bg-lapis hover:bg-lapis/90 text-papyrus">
-              <Link href="/dashboard/upload">
-                <Upload className="size-4" />
-                Enviar midia
-              </Link>
-            </Button>
+            <UploadDrawerTrigger className="bg-lapis hover:bg-lapis/90 text-papyrus">
+              Enviar midia
+            </UploadDrawerTrigger>
             <Button asChild variant="outline" className="border-gold/25">
               <Link href="/dashboard/library">
                 <Library className="size-4" />

@@ -1,8 +1,5 @@
-import Link from "next/link";
-import { Upload } from "lucide-react";
-
+import { UploadDrawerTrigger } from "@/components/media/upload-drawer-trigger";
 import { QueueList } from "@/components/queue/queue-list";
-import { Button } from "@/components/ui/button";
 
 export const metadata = {
   title: "Fila",
@@ -21,12 +18,7 @@ export default function QueuePage() {
             automaticamente enquanto houver jobs em andamento.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/upload">
-            <Upload className="size-4" />
-            Enviar mídia
-          </Link>
-        </Button>
+        <UploadDrawerTrigger>Enviar mídia</UploadDrawerTrigger>
       </div>
 
       <QueueList />

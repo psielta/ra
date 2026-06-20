@@ -10,6 +10,7 @@ import {
   resourceToTileProps,
 } from "@/components/media/resource-tile";
 import { ResourceTileMenu } from "@/components/media/resource-tile-menu";
+import { UploadDrawerTrigger } from "@/components/media/upload-drawer-trigger";
 import { SeriesDeleteDialog } from "@/components/series/series-delete-dialog";
 import { SeriesEditDrawer } from "@/components/series/series-edit-drawer";
 import { Button } from "@/components/ui/button";
@@ -83,11 +84,9 @@ export function SeriesDetail({ id }: { id: string }) {
             <Pencil className="size-4" />
             Editar série
           </Button>
-          <Button asChild>
-            <Link href={`/dashboard/upload?seriesId=${series.id}`}>
-              Enviar para esta série
-            </Link>
-          </Button>
+          <UploadDrawerTrigger defaultSeriesId={series.id}>
+            Enviar para esta série
+          </UploadDrawerTrigger>
           <Button
             type="button"
             variant="destructive"

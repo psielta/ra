@@ -3,6 +3,7 @@
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { SeriesCommandMenuProvider } from "@/components/admin/series-command-menu";
+import { MediaUploadDrawer } from "@/components/media/media-upload-drawer";
 import { RealtimeProvider } from "@/components/notifications/realtime-provider";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
@@ -32,6 +33,8 @@ export function AdminShell({ children, title }: AdminShellProps) {
             <AdminHeader title={title} />
             <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
           </div>
+
+          <MediaUploadDrawer />
         </div>
       </SeriesCommandMenuProvider>
     </RealtimeProvider>

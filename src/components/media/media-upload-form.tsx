@@ -1,7 +1,7 @@
 "use client";
 
 import { Circle, Loader2, Mic, Square, Upload, Video, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -55,10 +55,16 @@ export function MediaUploadForm({
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const recordedUrlRef = useRef<string | null>(null);
+  const formId = useId();
+  const fileInputId = `${formId}-media-file`;
+  const titleInputId = `${formId}-title`;
+  const seriesInputId = `${formId}-series`;
+  const descriptionInputId = `${formId}-description`;
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -245,7 +251,7 @@ export function MediaUploadForm({
           setDragOver(false);
           void handleFiles(event.dataTransfer.files);
         }}
-        onClick={() => document.getElementById("media-file-input")?.click()}
+        onClick={() => fileInputRef.current?.click()}
       >
         {uploadMedia.isPending ? (
           <Loader2 className="text-gold size-8 animate-spin" />
@@ -259,7 +265,8 @@ export function MediaUploadForm({
           </p>
         </div>
         <input
-          id="media-file-input"
+          id={fileInputId}
+          ref={fileInputRef}
           type="file"
           accept="audio/mpeg,video/mp4,audio/webm,video/webm,.mp3,.mp4,.webm"
           className="hidden"
@@ -371,9 +378,9 @@ export function MediaUploadForm({
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="upload-title">Titulo (opcional)</Label>
+          <Label htmlFor={titleInputId}>Titulo (opcional)</Label>
           <Input
-            id="upload-title"
+            id={titleInputId}
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Nome da faixa ou video"
@@ -381,9 +388,9 @@ export function MediaUploadForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="upload-series">Serie (categoria)</Label>
+          <Label htmlFor={seriesInputId}>Serie (categoria)</Label>
           <select
-            id="upload-series"
+            id={seriesInputId}
             value={seriesId}
             onChange={(event) => setSeriesId(event.target.value)}
             className="border-input bg-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 text-sm outline-none focus-visible:ring-2"
@@ -399,9 +406,9 @@ export function MediaUploadForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="upload-description">Descricao (opcional)</Label>
+        <Label htmlFor={descriptionInputId}>Descricao (opcional)</Label>
         <textarea
-          id="upload-description"
+          id={descriptionInputId}
           value={description}
           onChange={(event) => setDescription(event.target.value)}
           rows={3}
