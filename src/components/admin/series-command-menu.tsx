@@ -40,11 +40,11 @@ function useSeriesCommandMenu() {
 }
 
 function useIsMac() {
-  const [isMac, setIsMac] = useState(false);
-
-  useEffect(() => {
-    setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.userAgent));
-  }, []);
+  const [isMac] = useState(
+    () =>
+      typeof navigator !== "undefined" &&
+      /Mac|iPhone|iPad|iPod/.test(navigator.userAgent),
+  );
 
   return isMac;
 }

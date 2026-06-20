@@ -33,6 +33,7 @@ export function SeriesEditDrawer({
         </SheetHeader>
         <div className="px-4 pb-6">
           <SeriesEditForm
+            key={series.id}
             series={series}
             onSuccess={() => onOpenChange(false)}
             onCancel={() => onOpenChange(false)}

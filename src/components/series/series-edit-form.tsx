@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,11 +24,6 @@ export function SeriesEditForm({
   const updateSeries = useUpdateSeries(series.id);
   const [title, setTitle] = useState(series.title);
   const [description, setDescription] = useState(series.description ?? "");
-
-  useEffect(() => {
-    setTitle(series.title);
-    setDescription(series.description ?? "");
-  }, [series]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();

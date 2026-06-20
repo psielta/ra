@@ -139,7 +139,7 @@ Videos e audios passam por conversao HLS para streaming no browser. Videos tambe
 └─────────────┘        │                          │
                        ▼                          │
               ┌────────────────────┐              │
-              │ Worker .NET 8       │──────────────┘
+              │ Worker .NET 10      │──────────────┘
               │ FFmpeg · Serilog   │
               │ (mesmo padrão do   │
               │  WorkerService     │
@@ -159,7 +159,7 @@ Videos e audios passam por conversao HLS para streaming no browser. Videos tambe
 
 ## Worker .NET (referência e versões)
 
-O worker de transcodificação será um **.NET 8 Worker Service**, espelhando o padrão de `D:\globalleitorpdf\globalleitorpdf\WorkerServiceBuscaPrecoIA`:
+O worker de transcodificação é um **.NET 10 Worker Service**, espelhando o padrão de arquitetura de `D:\globalleitorpdf\globalleitorpdf\WorkerServiceBuscaPrecoIA`:
 
 - `BackgroundService` + consumer RabbitMQ (`IRabbitMqConsumerService`)
 - Processamento em `IMediaTranscodeWorkerService` (equivalente ao `IPriceSearchWorkerService`)
@@ -167,26 +167,27 @@ O worker de transcodificação será um **.NET 8 Worker Service**, espelhando o 
 - Atualização de status final no PostgreSQL via API Next.js ou acesso direto
 - Logs estruturados com **Serilog**; métricas opcionais com **prometheus-net**
 
-### Pacotes alvo (mesmas versões do worker de referência)
+### Pacotes principais do worker
 
-| Pacote                                       | Versão   |
-| -------------------------------------------- | -------- |
-| TargetFramework                              | `net8.0` |
-| Microsoft.Extensions.Hosting                 | 9.0.9    |
-| Microsoft.Extensions.Hosting.WindowsServices | 9.0.9    |
-| RabbitMQ.Client                              | 6.8.1    |
-| StackExchange.Redis                          | 2.8.16   |
-| Newtonsoft.Json                              | 13.0.4   |
-| Serilog                                      | 4.1.0    |
-| Serilog.Extensions.Hosting                   | 8.0.0    |
-| Serilog.Sinks.Console / File                 | 6.0.0    |
-| prometheus-net                               | 8.2.1    |
+| Pacote                                       | Versão        |
+| -------------------------------------------- | ------------- |
+| TargetFramework                              | `net10.0`     |
+| Microsoft.Extensions.Hosting                 | 10.0.9        |
+| Microsoft.Extensions.Hosting.WindowsServices | 10.0.9        |
+| Microsoft.Extensions.Http                    | 10.0.9        |
+| RabbitMQ.Client                              | 6.8.1         |
+| StackExchange.Redis                          | 2.8.16        |
+| Newtonsoft.Json                              | 13.0.4        |
+| Serilog                                      | 4.3.1         |
+| Serilog.Extensions.Hosting                   | 10.0.0        |
+| Serilog.Sinks.Console / File                 | 6.1.1 / 6.0.0 |
+| prometheus-net                               | 8.2.1         |
 
 Estrutura prevista no repositório:
 
 ```text
 worker/
-  WorkerServiceRaMedia/          Worker .NET 8 (RabbitMQ + Redis + FFmpeg)
+  WorkerServiceRaMedia/          Worker .NET 10 (RabbitMQ + Redis + FFmpeg)
     Worker.cs
     Services/
       RabbitMqConsumerService.cs
@@ -222,24 +223,24 @@ Canais: `job.progress`, `job.completed`, `job.failed`. O frontend assina via SSE
 
 ### Frontend / API (este repositório — `D:\ra`)
 
-| Camada          | Tecnologia                                   |
-| --------------- | -------------------------------------------- |
-| Framework       | Next.js 15, App Router, React 19, TypeScript |
-| Auth            | Auth.js / NextAuth v5 (JWT + Credentials)    |
-| ORM             | Prisma + PostgreSQL                          |
-| UI              | Tailwind v4, shadcn/ui, lucide-react, sonner |
-| Forms           | react-hook-form + Zod                        |
-| Data            | TanStack Query, axios, TanStack Table        |
-| Players         | hls.js (audio e video HLS)                   |
-| Realtime        | SSE ou WebSocket (bridge Redis)              |
-| Estado UI       | Zustand                                      |
-| Observabilidade | Sentry + Pino                                |
+| Camada          | Tecnologia                                       |
+| --------------- | ------------------------------------------------ |
+| Framework       | Next.js 16.2.9, App Router, React 19, TypeScript |
+| Auth            | Auth.js / NextAuth v5 (JWT + Credentials)        |
+| ORM             | Prisma + PostgreSQL                              |
+| UI              | Tailwind v4, shadcn/ui, lucide-react, sonner     |
+| Forms           | react-hook-form + Zod                            |
+| Data            | TanStack Query, axios, TanStack Table            |
+| Players         | hls.js (audio e video HLS)                       |
+| Realtime        | SSE ou WebSocket (bridge Redis)                  |
+| Estado UI       | Zustand                                          |
+| Observabilidade | Sentry + Pino                                    |
 
 ### Worker de midia (`worker/`)
 
 | Camada            | Tecnologia                        |
 | ----------------- | --------------------------------- |
-| Runtime           | .NET 8 Worker Service             |
+| Runtime           | .NET 10 Worker Service            |
 | Fila              | RabbitMQ 6.8.x                    |
 | Progresso / cache | Redis (StackExchange.Redis 2.8.x) |
 | Transcoding       | FFmpeg (CLI via Process)          |
@@ -327,7 +328,7 @@ D:\ra/
     app/api/series|resources|queue/
   prisma/                       Schema e migrations (MediaAsset, TranscodeJob, Series)
   docker/                       Entrypoints
-  worker/                       WorkerServiceRaMedia (.NET 8)
+  worker/                       WorkerServiceRaMedia (.NET 10)
   nginx/                        conf para HLS/covers
   docker-compose.yml            Postgres, app, RabbitMQ, Redis, MinIO, Nginx, Mailhog, worker
 ```
@@ -340,7 +341,7 @@ D:\ra/
 
 - Node.js 22+
 - Docker + Docker Compose
-- .NET SDK 8 para desenvolver/testar o worker localmente
+- .NET SDK 10 para desenvolver/testar o worker localmente
 - FFmpeg na imagem Docker do worker
 
 ### 1. Variáveis de ambiente
@@ -404,7 +405,7 @@ PowerShell quebra em `D:\ra` por causa de `\r` — use `cmd /c`.
 - **Audio e video sempre em HLS** apos upload — MP3/MP4/WebM originals sao entrada; playback no browser usa `.m3u8`.
 - **Fila RabbitMQ** desacopla upload (rápido) de transcode (lento/CPU-bound).
 - **Redis Pub/Sub** para progresso — mesmo padrão do `WorkerServiceBuscaPrecoIA`; não bloquear o worker com polling do frontend.
-- **Worker em .NET 8**, não Node — FFmpeg em processo longo, Serilog maduro, reuso do template RabbitMQ+Redis já validado em produção.
+- **Worker em .NET 10**, não Node — FFmpeg em processo longo, Serilog maduro, reuso do template RabbitMQ+Redis já validado em produção.
 - **Nginx** na frente dos segmentos HLS e covers — cache, range requests, MIME types corretos para `.m3u8`/`.ts`/`.jpg`.
 - **Object storage** (MinIO/S3) — originals e outputs; banco guarda apenas metadados e URLs.
 - **Status no PostgreSQL** é fonte de verdade; Redis é transporte efêmero de eventos.

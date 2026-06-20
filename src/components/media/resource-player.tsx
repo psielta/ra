@@ -7,7 +7,7 @@ import Hls, {
   type FragLoadingData,
 } from "hls.js";
 import { Activity, Headphones, Loader2, Video } from "lucide-react";
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useReducer, useRef, type RefObject } from "react";
 
 import { ResourceStatusBadge } from "@/components/media/resource-status-badge";
 import type { ResourceDto } from "@/lib/validations/series";
@@ -37,6 +37,12 @@ type HlsDiagnostics = {
   errorMessage: string | null;
 };
 
+type HlsDiagnosticsAction =
+  | { type: "reset" }
+  | { type: "mode"; mode: HlsSourceMode }
+  | { type: "segment"; segment: HlsSegmentTrace }
+  | { type: "error"; message: string };
+
 function createInitialHlsDiagnostics(): HlsDiagnostics {
   return {
     mode: "idle",
@@ -44,6 +50,45 @@ function createInitialHlsDiagnostics(): HlsDiagnostics {
     currentSegment: null,
     segments: [],
     errorMessage: null,
+  };
+}
+
+function hlsDiagnosticsReducer(
+  state: HlsDiagnostics,
+  action: HlsDiagnosticsAction,
+): HlsDiagnostics {
+  if (action.type === "reset") {
+    return createInitialHlsDiagnostics();
+  }
+
+  if (action.type === "mode") {
+    return { ...state, mode: action.mode };
+  }
+
+  if (action.type === "error") {
+    return { ...state, errorMessage: action.message };
+  }
+
+  const { segment } = action;
+  const withoutPendingDuplicate = state.segments.filter(
+    (item) =>
+      !(
+        item.status === "loading" &&
+        item.url === segment.url &&
+        item.sequence === segment.sequence
+      ),
+  );
+
+  return {
+    ...state,
+    loadedCount:
+      segment.status === "loaded" ? state.loadedCount + 1 : state.loadedCount,
+    currentSegment: segment,
+    errorMessage: null,
+    segments: [segment, ...withoutPendingDuplicate].slice(
+      0,
+      MAX_SEGMENT_HISTORY,
+    ),
   };
 }
 
@@ -141,8 +186,9 @@ function useHlsSource<T extends HTMLMediaElement>(
   mediaRef: RefObject<T | null>,
   src: string,
 ) {
-  const [diagnostics, setDiagnostics] = useState<HlsDiagnostics>(
-    createInitialHlsDiagnostics,
+  const [diagnostics, dispatchDiagnostics] = useReducer(
+    hlsDiagnosticsReducer,
+    createInitialHlsDiagnostics(),
   );
   const segmentCounterRef = useRef(0);
 
@@ -151,47 +197,24 @@ function useHlsSource<T extends HTMLMediaElement>(
     if (!media) return;
 
     segmentCounterRef.current = 0;
-    setDiagnostics(createInitialHlsDiagnostics());
+    dispatchDiagnostics({ type: "reset" });
 
     if (media.canPlayType("application/vnd.apple.mpegurl")) {
       media.src = src;
-      setDiagnostics((current) => ({ ...current, mode: "native" }));
+      dispatchDiagnostics({ type: "mode", mode: "native" });
       return;
     }
 
     if (!Hls.isSupported()) {
       media.src = src;
-      setDiagnostics((current) => ({ ...current, mode: "fallback" }));
+      dispatchDiagnostics({ type: "mode", mode: "fallback" });
       return;
     }
 
     const hls = new Hls({ enableWorker: true });
 
     const pushSegment = (segment: HlsSegmentTrace) => {
-      setDiagnostics((current) => {
-        const withoutPendingDuplicate = current.segments.filter(
-          (item) =>
-            !(
-              item.status === "loading" &&
-              item.url === segment.url &&
-              item.sequence === segment.sequence
-            ),
-        );
-
-        return {
-          ...current,
-          loadedCount:
-            segment.status === "loaded"
-              ? current.loadedCount + 1
-              : current.loadedCount,
-          currentSegment: segment,
-          errorMessage: null,
-          segments: [segment, ...withoutPendingDuplicate].slice(
-            0,
-            MAX_SEGMENT_HISTORY,
-          ),
-        };
-      });
+      dispatchDiagnostics({ type: "segment", segment });
     };
 
     const nextSegmentId = (status: HlsSegmentStatus) => {
@@ -214,13 +237,13 @@ function useHlsSource<T extends HTMLMediaElement>(
     };
 
     const handleError = (_event: Events.ERROR, data: ErrorData) => {
-      setDiagnostics((current) => ({
-        ...current,
-        errorMessage: data.details ?? data.type ?? "Erro HLS",
-      }));
+      dispatchDiagnostics({
+        type: "error",
+        message: data.details ?? data.type ?? "Erro HLS",
+      });
     };
 
-    setDiagnostics((current) => ({ ...current, mode: "hlsjs" }));
+    dispatchDiagnostics({ type: "mode", mode: "hlsjs" });
     hls.on(Events.FRAG_LOADING, handleFragLoading);
     hls.on(Events.FRAG_LOADED, handleFragLoaded);
     hls.on(Events.ERROR, handleError);

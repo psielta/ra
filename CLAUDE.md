@@ -4,7 +4,7 @@ Documentação de contexto para agentes Claude (Claude Code, Cursor, etc.) traba
 
 ## O que é este projeto
 
-**Ra** é um portfolio pessoal de **música (MP3)** e **vídeo (MP4 → HLS)**. Pipeline alvo: upload via Next.js → Storage (MinIO/S3) → fila RabbitMQ → worker .NET com FFmpeg → HLS no storage → Nginx → playback com hls.js. Progresso do job em tempo real via Redis pub/sub (padrão do `WorkerServiceBuscaPrecoIA`). A v0.1 entrega auth + layout admin; o pipeline de mídia é a próxima entrega principal.
+**Ra** é um portfolio pessoal de **música (MP3 → HLS)** e **vídeo (MP4 → HLS)**. Pipeline atual: upload via Next.js → Storage (MinIO/S3) → fila RabbitMQ → worker .NET com FFmpeg → HLS no storage → Nginx → playback com hls.js. Progresso do job em tempo real via Redis pub/sub (padrão do `WorkerServiceBuscaPrecoIA`).
 
 Idioma da UI e copy: **pt-BR**.
 
@@ -12,7 +12,7 @@ Idioma da UI e copy: **pt-BR**.
 
 | Camada             | Tecnologia                                                  |
 | ------------------ | ----------------------------------------------------------- |
-| Framework          | Next.js 15 (App Router, Turbopack, `src/`)                  |
+| Framework          | Next.js 16.2.9 (App Router, Turbopack, `src/`)              |
 | Auth               | Auth.js / NextAuth v5 (JWT + Credentials)                   |
 | ORM / DB           | Prisma + PostgreSQL                                         |
 | UI                 | Tailwind CSS v4, shadcn/ui (new-york), lucide-react, sonner |
@@ -27,29 +27,29 @@ Idioma da UI e copy: **pt-BR**.
 | Infra              | Docker Compose                                              |
 | Fila               | RabbitMQ (jobs de transcode)                                |
 | Progresso realtime | Redis Pub/Sub → SSE no Next.js                              |
-| Storage            | MinIO / S3 (originals + HLS/MP3)                            |
-| Entrega mídia      | Nginx (`.m3u8`, `.ts`, MP3)                                 |
-| Worker             | .NET 8 + FFmpeg (`worker/WorkerServiceRaMedia`)             |
+| Storage            | MinIO / S3 (originals + HLS/covers)                         |
+| Entrega mídia      | Nginx (`.m3u8`, `.ts`, covers)                              |
+| Worker             | .NET 10 + FFmpeg (`worker/WorkerServiceRaMedia`)            |
 | Player vídeo       | hls.js                                                      |
-| Player áudio       | HTML5 `<audio>` (MP3)                                       |
+| Player áudio       | hls.js anexado ao `<audio>`                                 |
 
 Leia [`README.md`](./README.md) para diagramas e decisões arquiteturais completas.
 
 ## Pipeline de mídia
 
 ```text
-Upload → Storage → RabbitMQ → Worker .NET (FFmpeg) → HLS/MP3 → Storage
+Upload → Storage → RabbitMQ → Worker .NET (FFmpeg) → HLS/covers → Storage
                                     ↓ Redis (job.progress|completed|failed)
 PostgreSQL (processing|ready|error) ←── SSE → Frontend (barra de progresso + player)
-Nginx serve HLS/MP3 → hls.js / HTML5 audio
+Nginx serve HLS/covers → hls.js
 ```
 
 Referência de worker: `D:\globalleitorpdf\globalleitorpdf\WorkerServiceBuscaPrecoIA`
 
-- .NET 8, RabbitMQ.Client 6.8.1, StackExchange.Redis 2.8.16, Serilog 4.1.0
+- .NET 10, RabbitMQ.Client 6.8.1, StackExchange.Redis 2.8.16, Serilog 4.3.1
 - `IRedisService.PublishProgressAsync` → canal `job.progress`
 
-**Regras:** FFmpeg nunca no Next.js. Vídeo sempre HLS no playback. PostgreSQL = status; Redis = progresso efêmero.
+**Regras:** FFmpeg nunca no Next.js. Áudio e vídeo sempre HLS no playback. PostgreSQL = status; Redis = progresso efêmero.
 
 ## Portas — REGRA OBRIGATÓRIA
 
@@ -65,7 +65,7 @@ Referência de worker: `D:\globalleitorpdf\globalleitorpdf\WorkerServiceBuscaPre
 | Redis               | 14006      | `PORTS.redis`              |
 | MinIO API           | 14007      | `PORTS.minio`              |
 | MinIO Console       | 14008      | `PORTS.minioConsole`       |
-| Nginx (HLS/MP3)     | 14009      | `PORTS.nginx`              |
+| Nginx (HLS/covers)  | 14009      | `PORTS.nginx`              |
 | Worker Prometheus   | 14010      | `PORTS.workerMetrics`      |
 
 Definição central: `src/config/ports.ts`.
@@ -79,7 +79,7 @@ Dentro dos containers Docker a app usa porta `3000` e o Postgres `5432` — apen
 ### Pré-requisitos
 
 - Node.js 22+
-- Docker + Docker Compose (para Postgres e, no futuro, RabbitMQ/Redis/MinIO)
+- Docker + Docker Compose (Postgres, RabbitMQ, Redis, MinIO, Nginx, Mailhog e worker)
 - Copiar `.env.example` → `.env`
 
 ### Modo dev — padrão ao codar e testar
@@ -157,8 +157,8 @@ src/
 │       ├── auth/[...nextauth]/     # Auth.js handlers
 │       └── auth/register/          # POST signup
 ├── auth.ts                         # Config completa Auth.js (Node)
-├── auth.config.ts                  # Config edge-safe (middleware)
-├── middleware.ts                   # Proteção de rotas
+├── auth.config.ts                  # Config compartilhada do Auth.js para proxy
+├── proxy.ts                        # Proteção de rotas (Next.js 16)
 ├── components/
 │   ├── admin/                      # Sidebar, header, shell
 │   ├── auth/                       # Forms e layout de auth
@@ -184,13 +184,12 @@ prisma/
 docker/                             # Entrypoints
 e2e/                                # Playwright
 
-# Previsto (pipeline de mídia):
-worker/WorkerServiceRaMedia/       # .NET 8 — RabbitMQ + Redis + FFmpeg
-nginx/                              # Serve HLS e MP3
-docker-compose.media.yml            # Serviços de mídia
-src/app/(admin)/dashboard/library/  # Biblioteca do usuário
+# Pipeline de mídia:
+worker/WorkerServiceRaMedia/       # .NET 10 — RabbitMQ + Redis + FFmpeg
+nginx/                              # Serve HLS e covers
+src/app/(admin)/resources/          # Biblioteca do usuário
 src/app/api/media/                  # upload, jobs, SSE
-src/components/media/               # upload UI, player, progress
+src/components/media/               # upload UI, player HLS, progress
 ```
 
 ## Arquitetura de autenticação
@@ -198,12 +197,12 @@ src/components/media/               # upload UI, player, progress
 ```
 Sign-up:  Form → POST /api/auth/register → bcrypt hash → Prisma User
 Sign-in:  Form → signIn("credentials") → auth.ts authorize() → JWT session
-Guard:    middleware (auth.config.ts) + layout server-side redirect
+Guard:    proxy (auth.config.ts) + layout server-side redirect
 ```
 
 Pontos importantes:
 
-- **`auth.config.ts`** — edge-safe, usado pelo middleware. Sem Prisma/bcrypt.
+- **`auth.config.ts`** — configuração compartilhada usada pelo proxy. Sem Prisma/bcrypt.
 - **`auth.ts`** — providers, adapter Prisma, callbacks JWT/session, logging.
 - Sessão JWT com `id` e `role` no token (ver `src/types/next-auth.d.ts`).
 - Rotas protegidas: `/dashboard/*`, `/admin/*`.
@@ -212,7 +211,7 @@ Pontos importantes:
 Ao adicionar nova rota protegida, atualizar **ambos**:
 
 1. `src/auth.config.ts` → callback `authorized`
-2. `src/middleware.ts` → `matcher`
+2. `src/proxy.ts` → `matcher`
 
 ## Tema visual (egípcio)
 
@@ -277,7 +276,7 @@ Config em `components.json`. Ícones: lucide-react.
 2. `POST /api/media/upload` — multipart, sessão, Zod, salva no MinIO/S3
 3. Criar job `processing`, publicar RabbitMQ, retornar `jobId` imediatamente
 4. SSE em `/api/media/jobs/[id]/events` — bridge Redis → browser
-5. UI em `/dashboard/library` — TanStack Table + barra de progresso
+5. UI em `/resources` e `/queue` — biblioteca + progresso em tempo real
 
 ### Worker .NET (`worker/`)
 
@@ -289,7 +288,7 @@ Config em `components.json`. Ícones: lucide-react.
 ### Player
 
 - Vídeo `ready`: hls.js com URL do Nginx (`PORTS.nginx`) ou storage
-- Áudio `ready`: `<audio controls src="...">`
+- Áudio `ready`: hls.js anexado ao `<audio>` com URL HLS
 - `processing`: não renderizar player; mostrar progresso SSE
 
 ## Docker
@@ -322,7 +321,7 @@ O serviço `app` sobrescreve `DATABASE_URL` para hostname `postgres` (rede inter
 ## O que NÃO fazer
 
 - Não alterar portas para 3000/5432 no host
-- Não importar `auth.ts` (com Prisma) no middleware — usar `auth.config.ts`
+- Não importar `auth.ts` (com Prisma) no proxy — usar `auth.config.ts`
 - Não criar markdown/docs não solicitados pelo usuário
 - Não refatorar código fora do escopo da tarefa
 - Não commitar `.env` (apenas `.env.example`)
@@ -333,7 +332,7 @@ O serviço `app` sobrescreve `DATABASE_URL` para hostname `postgres` (rede inter
 - **Não** bloquear o upload esperando conversão — resposta imediata com `processing`
 - **Não** usar polling no PostgreSQL para progresso — Redis pub/sub + SSE
 - **Não** servir MP4 direto como stream principal de vídeo — usar HLS
-- **Não** inventar versões de pacotes .NET diferentes do `WorkerServiceBuscaPrecoIA`
+- **Não** alterar o runtime alvo do worker sem pedido explícito — este repo usa `net10.0`
 - **Não** usar `docker:up` para iterar UI — preferir `npm run dev` + `docker:db`
 - **Não** deixar app Docker e `npm run dev` rodando ao mesmo tempo (conflito na 14001)
 
@@ -360,11 +359,11 @@ O serviço `app` sobrescreve `DATABASE_URL` para hostname `postgres` (rede inter
 | http://localhost:14001/dashboard         | Autenticado  |
 | http://localhost:14001/api/auth/register | POST público |
 
-## Estado v0.1 vs próxima entrega
+## Estado atual
 
-**Pronto:** auth, layout admin, Docker base, tema egípcio, testes.
+**Pronto:** auth, layout admin, Docker base/prod, tema egípcio, testes e pipeline de mídia end-to-end.
 
-**Próxima entrega principal:** pipeline de mídia completo (ver checklist em [`AGENT.md`](./AGENT.md#estado-atual-baseline-v01)).
+**Pipeline:** upload/gravação, MinIO, RabbitMQ, worker .NET 10/FFmpeg, Redis/SSE, Nginx, HLS para áudio/vídeo, cover automático de vídeo e player com monitor de segmentos.
 
 ## Documentação relacionada
 

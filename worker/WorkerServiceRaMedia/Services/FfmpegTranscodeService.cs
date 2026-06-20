@@ -123,7 +123,7 @@ public sealed class FfmpegTranscodeService(
         var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
         var lastProgressAt = DateTime.MinValue;
 
-        while (!process.StandardOutput.EndOfStream)
+        while (true)
         {
             var line = await process.StandardOutput.ReadLineAsync(cancellationToken);
             if (line is null)
