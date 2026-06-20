@@ -10,6 +10,8 @@ export const PORTS = {
   minioConsole: 14008,
   nginx: 14009,
   workerMetrics: 14010,
+  mailhogSmtp: 14011,
+  mailhogUi: 14012,
 } as const;
 
 export const APP_URL = `http://localhost:${PORTS.app}`;

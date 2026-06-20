@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  FolderOpen,
   LayoutDashboard,
-  Library,
+  Layers,
+  ListOrdered,
   PanelLeftClose,
   PanelLeftOpen,
   Upload,
@@ -29,9 +31,19 @@ const navItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Biblioteca",
-    href: "/dashboard/library",
-    icon: Library,
+    title: "Recursos",
+    href: "/resources",
+    icon: FolderOpen,
+  },
+  {
+    title: "Séries",
+    href: "/series",
+    icon: Layers,
+  },
+  {
+    title: "Fila",
+    href: "/queue",
+    icon: ListOrdered,
   },
   {
     title: "Enviar mídia",

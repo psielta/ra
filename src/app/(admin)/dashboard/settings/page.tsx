@@ -6,6 +6,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { NotificationsSettingsCard } from "@/components/settings/notifications-settings-card";
+import { PasswordSettingsCard } from "@/components/settings/password-settings-card";
 import { ProfileSettingsCard } from "@/components/settings/profile-settings-card";
 
 export const metadata = {
@@ -16,6 +17,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <ProfileSettingsCard />
+      <PasswordSettingsCard />
       <NotificationsSettingsCard />
 
       <Card className="border-gold/15">

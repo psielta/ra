@@ -260,37 +260,45 @@ Canais: `job.progress`, `job.completed`, `job.failed`. O frontend assina via SSE
 | MinIO Console       | **14008**  | UI do storage (dev)             |
 | Nginx               | **14009**  | Serve HLS (.m3u8/.ts) e MP3     |
 | Worker metrics      | **14010**  | Prometheus do worker (opcional) |
+| Mailhog SMTP        | **14011**  | E-mail em dev (esqueci senha)   |
+| Mailhog UI          | **14012**  | Inbox local de e-mails (dev)    |
 
-Todas as portas ficam no range **14001–15000**. Constantes atuais em `src/config/ports.ts`; novos serviços devem ser registrados lá ao entrar no Compose.
+Todas as portas ficam no range **14001–15000**. Constantes em `src/config/ports.ts`. **No Compose hoje:** Postgres, app, RabbitMQ, Redis, MinIO e Mailhog. **Pendente:** Nginx e worker.
 
 Storage em produção pode ser **S3**, **Cloudflare R2** ou **MinIO** — a API e o worker falam S3-compatible API; em dev, MinIO ou volume Docker.
 
 ---
 
-## Estado Atual (v0.1)
+## Estado Atual (v0.2 — pipeline parcial)
 
-A base web está pronta. O pipeline de mídia descrito acima é a **próxima grande entrega**.
+A base web e as **fases iniciais do pipeline de mídia** estão implementadas: upload → MinIO → fila RabbitMQ, UI de biblioteca por séries e fila de processamento. Falta o **worker .NET**, **SSE/Redis** e **Nginx/HLS** para jobs saírem de `processing` e o playback de vídeo ficar completo.
 
 ### Já implementado
 
 - Autenticação completa (sign-in, sign-up, JWT, roles `USER`/`ADMIN`)
+- Esqueci minha senha + reset + troca de senha no perfil (Mailhog em dev)
 - Layout admin (sidebar, header, mobile nav) com tema egípcio
-- Docker Compose com PostgreSQL + app Next.js
+- Docker Compose: PostgreSQL, app Next.js, RabbitMQ, Redis, MinIO, Mailhog
 - Prisma migrations automáticas no startup
 - Stack frontend configurada (Query, Table, Zustand, Lexical demo)
 - Sentry, Pino, Vitest, Playwright, ESLint, Husky
 
-### A implementar (pipeline de mídia)
+### Pipeline de mídia — checklist
 
-- [ ] Modelos Prisma: `MediaAsset`, `TranscodeJob` com status `processing|ready|error`
-- [ ] API de upload (multipart → MinIO/S3)
-- [ ] Publicação de job no RabbitMQ após upload
-- [ ] Serviços no Docker Compose: RabbitMQ, Redis, MinIO, Nginx
+- [x] Modelos Prisma: `MediaAsset`, `TranscodeJob`, `Series` com status `processing|ready|error`
+- [x] API de upload (multipart → MinIO/S3)
+- [x] Publicação de job no RabbitMQ após upload
+- [x] Docker Compose: RabbitMQ, Redis, MinIO (+ Mailhog para e-mail dev)
+- [x] UI de mídia: `/resources`, `/resources/[id]`, `/series`, `/series/[id]`, `/queue`, `/dashboard/upload`
+- [x] Séries como coleções (preview de itens na listagem + edição em drawer)
+- [x] Fila de processamento (`/queue`) com polling da API
+- [x] Player áudio HTML5 (MP3) quando status `ready`
+- [ ] Docker Compose: Nginx (HLS/MP3)
 - [ ] Worker .NET `WorkerServiceRaMedia` (FFmpeg, padrão WorkerServiceBuscaPrecoIA)
 - [ ] Redis pub/sub → SSE no Next.js para progresso live
 - [ ] Nginx servindo HLS e MP3
-- [ ] Biblioteca de mídia no dashboard (TanStack Table)
-- [ ] Player vídeo (hls.js) e player áudio (MP3)
+- [ ] Player vídeo (hls.js) — UI com placeholder hoje
+- [ ] TanStack Table na biblioteca (listagem atual usa cards + filtros)
 - [ ] Gravação no browser (MediaRecorder → upload)
 
 ---
@@ -298,9 +306,9 @@ A base web está pronta. O pipeline de mídia descrito acima é a **próxima gra
 ## Fluxo de Produto
 
 1. Usuário cria conta e entra no dashboard.
-2. Na biblioteca, grava ou faz upload de MP3/MP4.
-3. A API valida, persiste metadados (`processing`), salva o original no storage e enfileira o job.
-4. O dashboard exibe o item com barra de progresso; eventos Redis alimentam a UI em tempo real.
+2. Cria séries (coleções), envia MP3/MP4 em `/dashboard/upload` e classifica por série.
+3. A API valida, persiste metadados (`processing`), salva o original no MinIO e enfileira o job no RabbitMQ.
+4. `/resources`, `/series` e `/queue` exibem status e progresso (polling hoje; SSE/Redis na próxima fase).
 5. O worker .NET consome a fila, roda FFmpeg, publica progresso e grava HLS (vídeo) ou finaliza MP3 (áudio).
 6. Ao concluir, o banco passa para `ready`; Nginx/storage expõe as URLs de playback.
 7. O usuário assiste/ouve no player integrado. O portfolio é privado por padrão; vitrine pública é evolução futura.
@@ -311,13 +319,18 @@ A base web está pronta. O pipeline de mídia descrito acima é a **próxima gra
 
 ```text
 D:\ra/
-  src/                          Next.js (app, api, components)
-  prisma/                       Schema e migrations
+  src/
+    app/(admin)/resources/      Biblioteca de mídia
+    app/(admin)/series/         Coleções (séries)
+    app/(admin)/queue/          Fila de processamento
+    app/api/media/upload/       Upload → MinIO + RabbitMQ
+    app/api/series|resources|queue/
+  prisma/                       Schema e migrations (MediaAsset, TranscodeJob, Series)
   docker/                       Entrypoints
-  worker/                       [futuro] WorkerServiceRaMedia (.NET 8)
-  nginx/                        [futuro] conf para HLS/MP3
-  docker-compose.yml            Postgres + app (hoje)
-  docker-compose.media.yml      [futuro] RabbitMQ, Redis, MinIO, Nginx, worker
+  worker/                       [pendente] WorkerServiceRaMedia (.NET 8)
+  nginx/                        [pendente] conf para HLS/MP3
+  docker-compose.yml            Postgres, app, RabbitMQ, Redis, MinIO, Mailhog
+  docker-compose.media.yml      [futuro] overlay Nginx + worker
 ```
 
 ---

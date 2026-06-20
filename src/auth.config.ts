@@ -11,10 +11,19 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user;
       const { pathname } = request.nextUrl;
 
-      const isAuthRoute =
-        pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up");
+      const isPublicAuthRoute =
+        pathname.startsWith("/sign-in") ||
+        pathname.startsWith("/sign-up") ||
+        pathname.startsWith("/forgot-password") ||
+        pathname.startsWith("/reset-password");
+
+      const isAuthRoute = isPublicAuthRoute;
       const isProtectedRoute =
-        pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
+        pathname.startsWith("/dashboard") ||
+        pathname.startsWith("/admin") ||
+        pathname.startsWith("/resources") ||
+        pathname.startsWith("/series") ||
+        pathname.startsWith("/queue");
 
       if (isProtectedRoute) {
         return isLoggedIn;

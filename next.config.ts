@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   experimental: {
     authInterrupts: true,
   },
+  serverExternalPackages: ["minio", "amqplib"],
 };
 
 export default withSentryConfig(nextConfig, {

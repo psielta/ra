@@ -20,6 +20,14 @@ services:
       retries: 10
       start_period: 10s
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: ra-mailhog
+    restart: unless-stopped
+    ports:
+      - "14011:1025"
+      - "14012:8025"
+
   minio:
     image: minio/minio:latest
     container_name: ra-minio
@@ -48,6 +56,25 @@ services:
       timeout: 3s
       retries: 10
       start_period: 5s
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ra-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "14004:5672"
+      - "14005:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - ra_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   app:
     build:
@@ -81,5 +108,6 @@ volumes:
   ra_postgres_data:
   ra_minio_data:
   ra_redis_data:
+  ra_rabbitmq_data:
   ra_node_modules:
   ra_next_cache:

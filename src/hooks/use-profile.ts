@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 
 import { api } from "@/lib/axios";
+import type { ChangePasswordInput } from "@/lib/validations/password";
 import type { ProfileDto, UpdateProfileInput } from "@/lib/validations/profile";
 
 export const profileQueryKey = ["profile"] as const;
@@ -63,6 +64,18 @@ export function useUploadAvatar() {
     onSuccess: async (profile) => {
       queryClient.setQueryData(profileQueryKey, profile);
       await syncSession(profile);
+    },
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: async (input: ChangePasswordInput) => {
+      const { data } = await api.patch<{ message: string }>(
+        "/profile/password",
+        input,
+      );
+      return data;
     },
   });
 }
