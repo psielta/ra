@@ -1,4 +1,4 @@
-﻿import { MediaType, TranscodeJobStatus } from "@prisma/client";
+import { MediaType, TranscodeJobStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import { requireSession } from "@/lib/api-auth";
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     if (!metadata.success) {
       return NextResponse.json(
         {
-          message: "Dados invÃ¡lidos",
+          message: "Dados inválidos",
           errors: metadata.error.flatten().fieldErrors,
         },
         { status: 400 },
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
 
       if (!series) {
         return NextResponse.json(
-          { message: "SÃ©rie nÃ£o encontrada" },
+          { message: "Série não encontrada" },
           { status: 400 },
         );
       }
