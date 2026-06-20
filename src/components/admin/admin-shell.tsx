@@ -5,6 +5,7 @@ import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { SeriesCommandMenuProvider } from "@/components/admin/series-command-menu";
 import { MediaUploadDrawer } from "@/components/media/media-upload-drawer";
 import { PersistentMediaPlayer } from "@/components/media/persistent-media-player";
+import { UploadQueueRunner } from "@/components/media/upload-queue-runner";
 import { RealtimeProvider } from "@/components/notifications/realtime-provider";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
@@ -37,6 +38,7 @@ export function AdminShell({ children, title }: AdminShellProps) {
 
           <MediaUploadDrawer />
           <PersistentMediaPlayer />
+          <UploadQueueRunner />
         </div>
       </SeriesCommandMenuProvider>
     </RealtimeProvider>

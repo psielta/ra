@@ -1,6 +1,14 @@
 "use client";
 
-import { ExternalLink, Headphones, Video, X } from "lucide-react";
+import {
+  ExternalLink,
+  Headphones,
+  ListMusic,
+  SkipBack,
+  SkipForward,
+  Video,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import type { ResourceDto } from "@/lib/validations/series";
 import { useUiStore } from "@/stores/ui-store";
 
+import { AudioVisualizer } from "./audio-visualizer";
 import { useHlsSource } from "./resource-player";
 
 function useMiniPlayerEvents<T extends HTMLMediaElement>(
@@ -25,6 +34,9 @@ function useMiniPlayerEvents<T extends HTMLMediaElement>(
   const shouldPlay = useUiStore((state) => state.persistentPlaying);
   const updatePersistentPlayback = useUiStore(
     (state) => state.updatePersistentPlayback,
+  );
+  const advancePersistentPlaylist = useUiStore(
+    (state) => state.advancePersistentPlaylist,
   );
   const restoredRef = useRef(false);
 
@@ -89,8 +101,9 @@ function useMiniPlayerEvents<T extends HTMLMediaElement>(
   const handleEnded = useCallback(
     (event: SyntheticEvent<HTMLMediaElement>) => {
       syncFromMedia(event.currentTarget, false);
+      advancePersistentPlaylist();
     },
-    [syncFromMedia],
+    [advancePersistentPlaylist, syncFromMedia],
   );
 
   return {
@@ -114,18 +127,22 @@ function MiniAudioPlayer({
   const events = useMiniPlayerEvents(resource, audioRef);
 
   return (
-    <audio
-      ref={audioRef}
-      controls
-      preload="metadata"
-      className="w-full"
-      aria-label={resource.title ?? "Audio"}
-      onEnded={events.handleEnded}
-      onLoadedMetadata={events.handleLoadedMetadata}
-      onPause={events.handlePause}
-      onPlay={events.handlePlay}
-      onTimeUpdate={events.handleTimeUpdate}
-    />
+    <div className="space-y-2">
+      <audio
+        ref={audioRef}
+        controls
+        crossOrigin="anonymous"
+        preload="metadata"
+        className="w-full"
+        aria-label={resource.title ?? "Audio"}
+        onEnded={events.handleEnded}
+        onLoadedMetadata={events.handleLoadedMetadata}
+        onPause={events.handlePause}
+        onPlay={events.handlePlay}
+        onTimeUpdate={events.handleTimeUpdate}
+      />
+      <AudioVisualizer mediaRef={audioRef} variant="compact" />
+    </div>
   );
 }
 
@@ -141,26 +158,34 @@ function MiniVideoPlayer({
   const events = useMiniPlayerEvents(resource, videoRef);
 
   return (
-    <video
-      ref={videoRef}
-      controls
-      preload="metadata"
-      poster={resource.coverUrl ?? undefined}
-      className="aspect-video w-full bg-black"
-      aria-label={resource.title ?? "Video"}
-      onEnded={events.handleEnded}
-      onLoadedMetadata={events.handleLoadedMetadata}
-      onPause={events.handlePause}
-      onPlay={events.handlePlay}
-      onTimeUpdate={events.handleTimeUpdate}
-    />
+    <div className="space-y-2 p-2">
+      <video
+        ref={videoRef}
+        controls
+        crossOrigin="anonymous"
+        preload="metadata"
+        poster={resource.coverUrl ?? undefined}
+        className="aspect-video w-full bg-black"
+        aria-label={resource.title ?? "Video"}
+        onEnded={events.handleEnded}
+        onLoadedMetadata={events.handleLoadedMetadata}
+        onPause={events.handlePause}
+        onPlay={events.handlePlay}
+        onTimeUpdate={events.handleTimeUpdate}
+      />
+      <AudioVisualizer mediaRef={videoRef} variant="compact" />
+    </div>
   );
 }
 
 export function PersistentMediaPlayer() {
   const resource = useUiStore((state) => state.persistentResource);
+  const playlist = useUiStore((state) => state.persistentPlaylist);
   const closePersistentPlayback = useUiStore(
     (state) => state.closePersistentPlayback,
+  );
+  const playPersistentPlaylistIndex = useUiStore(
+    (state) => state.playPersistentPlaylistIndex,
   );
   const pathname = usePathname();
 
@@ -173,31 +198,78 @@ export function PersistentMediaPlayer() {
   }
 
   const Icon = resource.mediaType === "audio" ? Headphones : Video;
+  const hasPlaylist = Boolean(playlist && playlist.resources.length > 1);
+  const currentIndex = playlist?.currentIndex ?? 0;
+  const canPlayPrevious = hasPlaylist && currentIndex > 0;
+  const canPlayNext =
+    hasPlaylist && currentIndex < (playlist?.resources.length ?? 0) - 1;
 
   return (
-    <aside className="border-gold/20 bg-background fixed right-4 bottom-4 z-50 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-lg border shadow-2xl">
-      <div className="border-border flex items-center gap-2 border-b px-3 py-2">
-        <Icon className="text-gold size-4 shrink-0" />
-        <Link
-          href={`/resources/${resource.id}`}
-          className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
-        >
-          {resource.title ?? "Sem titulo"}
-        </Link>
-        <Button asChild type="button" size="icon" variant="ghost">
-          <Link href={`/resources/${resource.id}`} aria-label="Abrir recurso">
-            <ExternalLink className="size-4" />
+    <aside
+      data-testid="persistent-media-player"
+      className="border-gold/20 bg-background fixed right-4 bottom-4 z-50 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-lg border shadow-2xl"
+    >
+      <div className="border-border space-y-2 border-b px-3 py-2">
+        <div className="flex items-center gap-2">
+          <Icon className="text-gold size-4 shrink-0" />
+          <Link
+            href={`/resources/${resource.id}`}
+            className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+          >
+            {resource.title ?? "Sem titulo"}
           </Link>
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          aria-label="Fechar player"
-          onClick={closePersistentPlayback}
-        >
-          <X className="size-4" />
-        </Button>
+          <Button asChild type="button" size="icon" variant="ghost">
+            <Link href={`/resources/${resource.id}`} aria-label="Abrir recurso">
+              <ExternalLink className="size-4" />
+            </Link>
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            aria-label="Fechar player"
+            onClick={closePersistentPlayback}
+          >
+            <X className="size-4" />
+          </Button>
+        </div>
+
+        {playlist ? (
+          <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-xs">
+            <ListMusic className="text-gold size-3.5 shrink-0" />
+            <span className="truncate">{playlist.title}</span>
+            <span className="shrink-0">
+              {playlist.currentIndex + 1}/{playlist.resources.length}
+            </span>
+          </div>
+        ) : null}
+
+        {hasPlaylist ? (
+          <div className="flex items-center justify-center gap-2">
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              disabled={!canPlayPrevious}
+              aria-label="Faixa anterior"
+              onClick={() => playPersistentPlaylistIndex(currentIndex - 1)}
+            >
+              <SkipBack className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              disabled={!canPlayNext}
+              aria-label="Proxima faixa"
+              onClick={() => playPersistentPlaylistIndex(currentIndex + 1)}
+            >
+              <SkipForward className="size-4" />
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {resource.mediaType === "video" ? (

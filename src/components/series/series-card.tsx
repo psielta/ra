@@ -5,6 +5,7 @@ import {
   ChevronRight,
   MoreHorizontal,
   Pencil,
+  Play,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -24,11 +25,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { SeriesListDto } from "@/lib/validations/series";
 import { cn, truncateText } from "@/lib/utils";
+import { useUiStore } from "@/stores/ui-store";
 
 export function SeriesCard({ series }: { series: SeriesListDto }) {
+  const startPersistentPlaylist = useUiStore(
+    (state) => state.startPersistentPlaylist,
+  );
   const [expanded, setExpanded] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const playableResources = series.resources
+    .filter(
+      (resource) =>
+        resource.status === "ready" && Boolean(resource.playbackUrl),
+    )
+    .sort(
+      (first, second) =>
+        new Date(first.createdAt).getTime() -
+        new Date(second.createdAt).getTime(),
+    );
+  const playlist = {
+    seriesId: series.id,
+    title: series.title,
+    resources: playableResources,
+  };
 
   return (
     <>
@@ -60,6 +80,24 @@ export function SeriesCard({ series }: { series: SeriesListDto }) {
           <span className="bg-muted text-muted-foreground shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium">
             {series.resourceCount}
           </span>
+
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-8 shrink-0"
+            aria-label="Reproduzir serie"
+            disabled={playableResources.length === 0}
+            onClick={() =>
+              startPersistentPlaylist({
+                seriesId: series.id,
+                title: series.title,
+                resources: playableResources,
+              })
+            }
+          >
+            <Play className="size-4 fill-current" />
+          </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -104,7 +142,10 @@ export function SeriesCard({ series }: { series: SeriesListDto }) {
               {series.resources.map((resource) => (
                 <ResourceTileMenu
                   key={resource.id}
-                  tile={resourceToTileProps(resource)}
+                  tile={{
+                    ...resourceToTileProps(resource),
+                    playlist,
+                  }}
                   resource={resource}
                 />
               ))}

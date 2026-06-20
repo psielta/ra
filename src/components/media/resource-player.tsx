@@ -20,6 +20,8 @@ import { ResourceStatusBadge } from "@/components/media/resource-status-badge";
 import type { ResourceDto } from "@/lib/validations/series";
 import { useUiStore } from "@/stores/ui-store";
 
+import { AudioVisualizer } from "./audio-visualizer";
+
 const MAX_SEGMENT_HISTORY = 6;
 
 type HlsSourceMode = "idle" | "native" | "hlsjs" | "fallback";
@@ -154,6 +156,26 @@ function getSegmentFileName(url: string) {
   }
 }
 
+function isHlsMediaSegment(url: string) {
+  const fileName = getSegmentFileName(url).toLowerCase();
+  return /\.(ts|m4s|aac)$/.test(fileName);
+}
+
+function isSegmentFromSource(segmentUrl: string, src: string) {
+  try {
+    const source = new URL(src, window.location.href);
+    const segment = new URL(segmentUrl, window.location.href);
+    const sourceDirectory = source.pathname.slice(
+      0,
+      source.pathname.lastIndexOf("/") + 1,
+    );
+
+    return segment.pathname.startsWith(sourceDirectory);
+  } catch {
+    return false;
+  }
+}
+
 function getLoadedBytes(data: FragLoadedData) {
   const loaded = data.frag.stats?.loaded;
 
@@ -190,6 +212,31 @@ function toSegmentTrace(
   };
 }
 
+function getPerformanceBytes(entry: PerformanceResourceTiming) {
+  const size =
+    entry.transferSize || entry.encodedBodySize || entry.decodedBodySize || 0;
+
+  return size > 0 ? size : null;
+}
+
+function toPerformanceSegmentTrace(
+  entry: PerformanceResourceTiming,
+  id: string,
+  sequence: number,
+) {
+  return {
+    id,
+    status: "loaded",
+    sequence: `obs-${sequence}`,
+    level: 0,
+    durationSeconds: 0,
+    bytes: getPerformanceBytes(entry),
+    url: entry.name,
+    fileName: getSegmentFileName(entry.name),
+    receivedAtLabel: formatClock(new Date()),
+  } satisfies HlsSegmentTrace;
+}
+
 export function useHlsSource<T extends HTMLMediaElement>(
   mediaRef: RefObject<T | null>,
   src: string,
@@ -206,17 +253,74 @@ export function useHlsSource<T extends HTMLMediaElement>(
 
     segmentCounterRef.current = 0;
     dispatchDiagnostics({ type: "reset" });
+    const observedLoadedSegments = new Set<string>();
+
+    const pushLoadedSegment = (segment: HlsSegmentTrace) => {
+      if (observedLoadedSegments.has(segment.url)) return;
+
+      observedLoadedSegments.add(segment.url);
+      dispatchDiagnostics({ type: "segment", segment });
+    };
+
+    const maybePushObservedSegment = (entry: PerformanceEntry) => {
+      if (
+        entry.entryType !== "resource" ||
+        !isHlsMediaSegment(entry.name) ||
+        !isSegmentFromSource(entry.name, src) ||
+        observedLoadedSegments.has(entry.name)
+      ) {
+        return;
+      }
+
+      segmentCounterRef.current += 1;
+      pushLoadedSegment(
+        toPerformanceSegmentTrace(
+          entry as PerformanceResourceTiming,
+          `observed-${segmentCounterRef.current}`,
+          segmentCounterRef.current,
+        ),
+      );
+    };
+
+    const scanBufferedResourceEntries = () => {
+      if (typeof performance === "undefined") return;
+
+      for (const entry of performance.getEntriesByType("resource")) {
+        maybePushObservedSegment(entry);
+      }
+    };
+
+    let performanceObserver: PerformanceObserver | null = null;
+
+    if (typeof PerformanceObserver !== "undefined") {
+      try {
+        performanceObserver = new PerformanceObserver((list) => {
+          for (const entry of list.getEntries()) {
+            maybePushObservedSegment(entry);
+          }
+        });
+        performanceObserver.observe({ type: "resource", buffered: true });
+      } catch {
+        performanceObserver = null;
+      }
+    }
+
+    scanBufferedResourceEntries();
 
     if (media.canPlayType("application/vnd.apple.mpegurl")) {
       media.src = src;
       dispatchDiagnostics({ type: "mode", mode: "native" });
-      return;
+      return () => {
+        performanceObserver?.disconnect();
+      };
     }
 
     if (!Hls.isSupported()) {
       media.src = src;
       dispatchDiagnostics({ type: "mode", mode: "fallback" });
-      return;
+      return () => {
+        performanceObserver?.disconnect();
+      };
     }
 
     const hls = new Hls({ enableWorker: true });
@@ -241,7 +345,9 @@ export function useHlsSource<T extends HTMLMediaElement>(
       _event: Events.FRAG_LOADED,
       data: FragLoadedData,
     ) => {
-      pushSegment(toSegmentTrace(data, "loaded", nextSegmentId("loaded")));
+      pushLoadedSegment(
+        toSegmentTrace(data, "loaded", nextSegmentId("loaded")),
+      );
     };
 
     const handleError = (_event: Events.ERROR, data: ErrorData) => {
@@ -263,6 +369,7 @@ export function useHlsSource<T extends HTMLMediaElement>(
       hls.off(Events.FRAG_LOADED, handleFragLoaded);
       hls.off(Events.ERROR, handleError);
       hls.destroy();
+      performanceObserver?.disconnect();
     };
   }, [mediaRef, src]);
 
@@ -276,7 +383,16 @@ function usePersistentPlaybackEvents(resource: ResourceDto) {
   const updatePersistentPlayback = useUiStore(
     (state) => state.updatePersistentPlayback,
   );
+  const advancePersistentPlaylist = useUiStore(
+    (state) => state.advancePersistentPlaylist,
+  );
+  const persistentResource = useUiStore((state) => state.persistentResource);
+  const persistentCurrentTime = useUiStore(
+    (state) => state.persistentCurrentTime,
+  );
+  const persistentPlaying = useUiStore((state) => state.persistentPlaying);
   const pauseTimerRef = useRef<number | null>(null);
+  const restoredRef = useRef(false);
 
   const clearPauseTimer = useCallback(() => {
     if (pauseTimerRef.current) {
@@ -286,6 +402,10 @@ function usePersistentPlaybackEvents(resource: ResourceDto) {
   }, []);
 
   useEffect(() => clearPauseTimer, [clearPauseTimer]);
+
+  useEffect(() => {
+    restoredRef.current = false;
+  }, [resource.id]);
 
   const updateFromMedia = useCallback(
     (media: HTMLMediaElement, playing?: boolean) => {
@@ -305,6 +425,37 @@ function usePersistentPlaybackEvents(resource: ResourceDto) {
       updateFromMedia(event.currentTarget, true);
     },
     [clearPauseTimer, resource, startPersistentPlayback, updateFromMedia],
+  );
+
+  const handleLoadedMetadata = useCallback(
+    (event: SyntheticEvent<HTMLMediaElement>) => {
+      if (persistentResource?.id !== resource.id || restoredRef.current) {
+        return;
+      }
+
+      const media = event.currentTarget;
+      restoredRef.current = true;
+
+      if (
+        persistentCurrentTime > 1 &&
+        Math.abs(media.currentTime - persistentCurrentTime) > 1
+      ) {
+        media.currentTime = persistentCurrentTime;
+      }
+
+      if (persistentPlaying) {
+        void media.play().catch(() => {
+          updatePersistentPlayback(resource.id, { playing: false });
+        });
+      }
+    },
+    [
+      persistentCurrentTime,
+      persistentPlaying,
+      persistentResource?.id,
+      resource.id,
+      updatePersistentPlayback,
+    ],
   );
 
   const handlePause = useCallback(
@@ -329,12 +480,14 @@ function usePersistentPlaybackEvents(resource: ResourceDto) {
     (event: SyntheticEvent<HTMLMediaElement>) => {
       clearPauseTimer();
       updateFromMedia(event.currentTarget, false);
+      advancePersistentPlaylist();
     },
-    [clearPauseTimer, updateFromMedia],
+    [advancePersistentPlaylist, clearPauseTimer, updateFromMedia],
   );
 
   return {
     handlePlay,
+    handleLoadedMetadata,
     handlePause,
     handleTimeUpdate,
     handleEnded,
@@ -461,16 +614,19 @@ function HlsAudioPlayer({
       <audio
         ref={audioRef}
         controls
+        crossOrigin="anonymous"
         preload="metadata"
         className="w-full"
         aria-label={title}
         onPlay={playbackEvents.handlePlay}
+        onLoadedMetadata={playbackEvents.handleLoadedMetadata}
         onPause={playbackEvents.handlePause}
         onTimeUpdate={playbackEvents.handleTimeUpdate}
         onEnded={playbackEvents.handleEnded}
       >
         Seu navegador nao suporta reproducao de audio HLS.
       </audio>
+      <AudioVisualizer mediaRef={audioRef} />
       <HlsSegmentMonitor diagnostics={diagnostics} />
     </div>
   );
@@ -494,14 +650,17 @@ function HlsVideoPlayer({
       <video
         ref={videoRef}
         controls
+        crossOrigin="anonymous"
         preload="metadata"
         className="aspect-video w-full rounded-md bg-black"
         aria-label={title}
         onPlay={playbackEvents.handlePlay}
+        onLoadedMetadata={playbackEvents.handleLoadedMetadata}
         onPause={playbackEvents.handlePause}
         onTimeUpdate={playbackEvents.handleTimeUpdate}
         onEnded={playbackEvents.handleEnded}
       />
+      <AudioVisualizer mediaRef={videoRef} />
       <HlsSegmentMonitor diagnostics={diagnostics} />
     </div>
   );

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Play, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -22,11 +22,29 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useSeriesDetail } from "@/hooks/use-series";
+import type { ResourceDto } from "@/lib/validations/series";
 import { truncateText } from "@/lib/utils";
+import { useUiStore } from "@/stores/ui-store";
+
+function playableSeriesResources(resources: ResourceDto[]) {
+  return resources
+    .filter(
+      (resource) =>
+        resource.status === "ready" && Boolean(resource.playbackUrl),
+    )
+    .sort(
+      (first, second) =>
+        new Date(first.createdAt).getTime() -
+        new Date(second.createdAt).getTime(),
+    );
+}
 
 export function SeriesDetail({ id }: { id: string }) {
   const router = useRouter();
   const { data: series, isLoading, isError } = useSeriesDetail(id);
+  const startPersistentPlaylist = useUiStore(
+    (state) => state.startPersistentPlaylist,
+  );
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -53,6 +71,13 @@ export function SeriesDetail({ id }: { id: string }) {
     );
   }
 
+  const playableResources = playableSeriesResources(series.resources);
+  const playlist = {
+    seriesId: series.id,
+    title: series.title,
+    resources: playableResources,
+  };
+
   return (
     <div className="space-y-6">
       <Button asChild variant="ghost" className="px-0">
@@ -76,6 +101,20 @@ export function SeriesDetail({ id }: { id: string }) {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <Button
+            type="button"
+            onClick={() =>
+              startPersistentPlaylist({
+                seriesId: series.id,
+                title: series.title,
+                resources: playableResources,
+              })
+            }
+            disabled={playableResources.length === 0}
+          >
+            <Play className="size-4 fill-current" />
+            Reproduzir serie
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -126,7 +165,10 @@ export function SeriesDetail({ id }: { id: string }) {
             {series.resources.map((resource) => (
               <ResourceTileMenu
                 key={resource.id}
-                tile={resourceToTileProps(resource)}
+                tile={{
+                  ...resourceToTileProps(resource),
+                  playlist,
+                }}
                 resource={resource}
               />
             ))}

@@ -16,26 +16,26 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { useUploadMedia } from "@/hooks/use-resources";
+import {
+  deleteUploadFile,
+  deleteUploadFiles,
+  putUploadFile,
+} from "@/lib/upload/upload-queue-db";
 import { cn } from "@/lib/utils";
 import { validateMediaFile } from "@/lib/validations/media";
+import {
+  createQueuedUploadItem,
+  createRejectedUploadItem,
+  type UploadQueueItem,
+  type UploadQueueStatus,
+  useUploadQueueStore,
+} from "@/stores/upload-queue-store";
 
 type MediaUploadFormProps = {
   defaultSeriesId?: string;
-  onSuccess?: (mediaAssetId: string) => void;
 };
 
 type RecordingMode = "audio" | "video";
-type UploadStatus = "queued" | "uploading" | "done" | "error";
-
-type UploadQueueItem = {
-  id: number;
-  file: File;
-  status: UploadStatus;
-  progress: number;
-  error?: string;
-  mediaAssetId?: string;
-};
 
 function resolveRecordingMimeType(mode: RecordingMode) {
   if (typeof MediaRecorder === "undefined") {
@@ -67,24 +67,25 @@ function formatFileSize(bytes: number) {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-function statusIcon(status: UploadStatus) {
+function statusIcon(status: UploadQueueStatus) {
   if (status === "done") return CheckCircle2;
   if (status === "error") return AlertCircle;
   if (status === "uploading") return Loader2;
   return Upload;
 }
 
-function fileIcon(file: File) {
-  return file.type.startsWith("video/") ? FileVideo : FileAudio;
+function fileIcon(fileType: string) {
+  return fileType.startsWith("video/") ? FileVideo : FileAudio;
 }
 
-export function MediaUploadForm({
-  defaultSeriesId,
-  onSuccess,
-}: MediaUploadFormProps) {
-  const uploadMedia = useUploadMedia();
+export function MediaUploadForm({ defaultSeriesId }: MediaUploadFormProps) {
   const [dragOver, setDragOver] = useState(false);
-  const [queue, setQueue] = useState<UploadQueueItem[]>([]);
+  const queue = useUploadQueueStore((state) => state.items);
+  const addQueueItems = useUploadQueueStore((state) => state.addItems);
+  const removeQueueItem = useUploadQueueStore((state) => state.removeItem);
+  const clearFinishedQueueItems = useUploadQueueStore(
+    (state) => state.clearFinished,
+  );
   const [recordingMode, setRecordingMode] = useState<RecordingMode>("audio");
   const [isRecording, setIsRecording] = useState(false);
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
@@ -96,21 +97,13 @@ export function MediaUploadForm({
   const streamRef = useRef<MediaStream | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const recordedUrlRef = useRef<string | null>(null);
-  const queueSeqRef = useRef(0);
-  const pendingRef = useRef<UploadQueueItem[]>([]);
-  const runningRef = useRef(false);
   const defaultSeriesIdRef = useRef(defaultSeriesId);
-  const onSuccessRef = useRef(onSuccess);
   const formId = useId();
   const fileInputId = `${formId}-media-files`;
 
   useEffect(() => {
     defaultSeriesIdRef.current = defaultSeriesId;
   }, [defaultSeriesId]);
-
-  useEffect(() => {
-    onSuccessRef.current = onSuccess;
-  }, [onSuccess]);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -143,82 +136,57 @@ export function MediaUploadForm({
     [clearRecording, stopStream],
   );
 
-  const patchQueueItem = useCallback(
-    (id: number, changes: Partial<UploadQueueItem>) => {
-      setQueue((current) =>
-        current.map((item) =>
-          item.id === id ? { ...item, ...changes } : item,
-        ),
-      );
-    },
-    [],
-  );
-
-  async function pumpQueue() {
-    if (runningRef.current) return;
-
-    const next = pendingRef.current.shift();
-    if (!next) return;
-
-    runningRef.current = true;
-    patchQueueItem(next.id, { status: "uploading", progress: 10 });
-
-    try {
-      const result = await uploadMedia.mutateAsync({
-        file: next.file,
-        seriesId: defaultSeriesIdRef.current || undefined,
-      });
-
-      patchQueueItem(next.id, {
-        status: "done",
-        progress: 100,
-        mediaAssetId: result.mediaAssetId,
-      });
-      onSuccessRef.current?.(result.mediaAssetId);
-    } catch (error) {
-      patchQueueItem(next.id, {
-        status: "error",
-        error: error instanceof Error ? error.message : "Falha no upload",
-      });
-    } finally {
-      runningRef.current = false;
-      void pumpQueue();
-    }
-  }
-
-  function enqueueFiles(files: FileList | File[]) {
+  async function enqueueFiles(files: FileList | File[]) {
     const additions: UploadQueueItem[] = [];
     const rejected: string[] = [];
 
     for (const file of Array.from(files)) {
       const validation = validateMediaFile(file);
-      const item: UploadQueueItem = {
-        id: ++queueSeqRef.current,
-        file,
-        status: validation.ok ? "queued" : "error",
-        progress: 0,
-        error: validation.ok ? undefined : validation.message,
-      };
 
-      additions.push(item);
-      if (validation.ok) {
-        pendingRef.current.push(item);
-      } else {
+      if (!validation.ok) {
+        additions.push(
+          createRejectedUploadItem({
+            file,
+            error: validation.message,
+            seriesId: defaultSeriesIdRef.current,
+          }),
+        );
+        rejected.push(file.name);
+        continue;
+      }
+
+      const item = createQueuedUploadItem({
+        file,
+        seriesId: defaultSeriesIdRef.current,
+      });
+
+      try {
+        await putUploadFile(item.id, file);
+        additions.push(item);
+      } catch (error) {
+        additions.push(
+          createRejectedUploadItem({
+            file,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Nao foi possivel guardar o arquivo localmente.",
+            seriesId: defaultSeriesIdRef.current,
+          }),
+        );
         rejected.push(file.name);
       }
     }
 
     if (!additions.length) return;
 
-    setQueue((current) => [...current, ...additions]);
+    addQueueItems(additions);
 
     if (rejected.length) {
       toast.error("Alguns arquivos foram recusados", {
         description: rejected.slice(0, 3).join(", "),
       });
     }
-
-    void pumpQueue();
   }
 
   const startRecording = useCallback(async () => {
@@ -323,22 +291,27 @@ export function MediaUploadForm({
     clearRecording();
   }
 
-  const removeQueued = useCallback((id: number) => {
-    pendingRef.current = pendingRef.current.filter((item) => item.id !== id);
-    setQueue((current) =>
-      current.filter(
-        (item) => !(item.id === id && item.status !== "uploading"),
-      ),
-    );
-  }, []);
+  const removeQueued = useCallback(
+    async (item: UploadQueueItem) => {
+      if (item.status === "uploading") return;
 
-  const clearFinished = useCallback(() => {
-    setQueue((current) =>
-      current.filter(
-        (item) => item.status === "queued" || item.status === "uploading",
-      ),
-    );
-  }, []);
+      if (item.storedFile) {
+        await deleteUploadFile(item.id);
+      }
+
+      removeQueueItem(item.id);
+    },
+    [removeQueueItem],
+  );
+
+  const clearFinished = useCallback(async () => {
+    const finishedIds = queue
+      .filter((item) => item.status === "done" || item.status === "error")
+      .map((item) => item.id);
+
+    await deleteUploadFiles(finishedIds);
+    clearFinishedQueueItems();
+  }, [clearFinishedQueueItems, queue]);
 
   const hasFinished = queue.some(
     (item) => item.status === "done" || item.status === "error",
@@ -402,7 +375,7 @@ export function MediaUploadForm({
           <ul className="divide-border divide-y">
             {queue.map((item) => {
               const StatusIcon = statusIcon(item.status);
-              const FileIcon = fileIcon(item.file);
+              const FileIcon = fileIcon(item.fileType);
 
               return (
                 <li
@@ -414,7 +387,7 @@ export function MediaUploadForm({
                   </span>
                   <div className="min-w-0 space-y-1">
                     <p className="truncate text-sm font-medium">
-                      {item.file.name}
+                      {item.fileName}
                     </p>
                     {item.status === "uploading" ? (
                       <div className="bg-muted h-1.5 overflow-hidden rounded-full">
@@ -431,7 +404,7 @@ export function MediaUploadForm({
                       <p className="text-muted-foreground text-xs">
                         {item.status === "done"
                           ? "Enviado para processamento"
-                          : formatFileSize(item.file.size)}
+                          : formatFileSize(item.fileSize)}
                       </p>
                     )}
                   </div>
@@ -451,7 +424,7 @@ export function MediaUploadForm({
                         variant="ghost"
                         size="icon"
                         className="size-8"
-                        onClick={() => removeQueued(item.id)}
+                        onClick={() => void removeQueued(item)}
                         aria-label="Remover da fila"
                       >
                         <X className="size-4" />

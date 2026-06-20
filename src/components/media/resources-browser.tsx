@@ -8,12 +8,14 @@ import {
   FolderInput,
   Loader2,
   Music,
+  Play,
   Search,
   Video,
 } from "lucide-react";
 import Link from "next/link";
 import {
   useEffect,
+  useCallback,
   useMemo,
   useRef,
   useState,
@@ -29,6 +31,7 @@ import { useJobEventSources } from "@/hooks/use-job-events";
 import { useBulkUpdateResources, useResources } from "@/hooks/use-resources";
 import { useSeriesList } from "@/hooks/use-series";
 import type { ResourceDto } from "@/lib/validations/series";
+import { useUiStore } from "@/stores/ui-store";
 
 function IndeterminateCheckbox({
   checked,
@@ -72,6 +75,9 @@ export function ResourcesBrowser() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [bulkSeriesId, setBulkSeriesId] = useState("");
   const bulkUpdateResources = useBulkUpdateResources();
+  const startPersistentPlayback = useUiStore(
+    (state) => state.startPersistentPlayback,
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -103,6 +109,20 @@ export function ResourcesBrowser() {
     () => selectedResources.map((resource) => resource.id),
     [selectedResources],
   );
+  const playableFilteredResources = useMemo(
+    () =>
+      resources
+        .filter(
+          (resource) =>
+            resource.status === "ready" && Boolean(resource.playbackUrl),
+        )
+        .sort(
+          (first, second) =>
+            new Date(first.createdAt).getTime() -
+            new Date(second.createdAt).getTime(),
+        ),
+    [resources],
+  );
   const jobTargets = useMemo(
     () =>
       resources
@@ -116,6 +136,29 @@ export function ResourcesBrowser() {
     [resources],
   );
   useJobEventSources(jobTargets);
+
+  const playResource = useCallback(
+    (resource: ResourceDto) => {
+      if (resource.status !== "ready" || !resource.playbackUrl) return;
+
+      const canUseSeriesPlaylist =
+        Boolean(seriesId) &&
+        Boolean(resource.series) &&
+        resource.series?.id === seriesId;
+
+      startPersistentPlayback(
+        resource,
+        canUseSeriesPlaylist && resource.series
+          ? {
+              seriesId: resource.series.id,
+              title: resource.series.title,
+              resources: playableFilteredResources,
+            }
+          : null,
+      );
+    },
+    [playableFilteredResources, seriesId, startPersistentPlayback],
+  );
 
   const columns = useMemo<ColumnDef<ResourceDto>[]>(
     () => [
@@ -215,17 +258,35 @@ export function ResourcesBrowser() {
       {
         id: "actions",
         header: "",
-        cell: ({ row }) => (
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/resources/${row.original.id}`}>
-              <ExternalLink className="size-4" />
-              Abrir
-            </Link>
-          </Button>
-        ),
+        cell: ({ row }) => {
+          const resource = row.original;
+          const canPlay =
+            resource.status === "ready" && Boolean(resource.playbackUrl);
+
+          return (
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!canPlay}
+                onClick={() => playResource(resource)}
+              >
+                <Play className="size-4 fill-current" />
+                Play
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/resources/${resource.id}`}>
+                  <ExternalLink className="size-4" />
+                  Abrir
+                </Link>
+              </Button>
+            </div>
+          );
+        },
       },
     ],
-    [],
+    [playResource],
   );
 
   async function handleBulkSeriesUpdate() {

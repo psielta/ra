@@ -84,6 +84,7 @@ describe("ResourcePlayer", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("shows HLS segment monitor while waiting for the first segment", async () => {
@@ -127,5 +128,52 @@ describe("ResourcePlayer", () => {
     expect(screen.getByText("#1")).toBeInTheDocument();
     expect(screen.getByText("4.2s")).toBeInTheDocument();
     expect(screen.getByText("L0 - 184 KB")).toBeInTheDocument();
+  });
+
+  it("updates the monitor from resource timing when native HLS loads a segment", async () => {
+    const observerCallbacks: PerformanceObserverCallback[] = [];
+
+    class MockPerformanceObserver {
+      constructor(callback: PerformanceObserverCallback) {
+        observerCallbacks.push(callback);
+      }
+
+      observe = vi.fn();
+      disconnect = vi.fn();
+      takeRecords = vi.fn(() => []);
+    }
+
+    vi.stubGlobal("PerformanceObserver", MockPerformanceObserver);
+    vi.spyOn(performance, "getEntriesByType").mockReturnValue([]);
+    vi.spyOn(HTMLMediaElement.prototype, "canPlayType").mockReturnValue(
+      "probably",
+    );
+
+    render(<ResourcePlayer resource={readyVideoResource()} />);
+
+    expect(await screen.findByText("HLS nativo")).toBeInTheDocument();
+    expect(hlsMock.MockHls.instances).toHaveLength(0);
+
+    act(() => {
+      const segmentEntry = {
+        entryType: "resource",
+        name: "https://ra.local/ra-media/resource-1/segment-00002.ts",
+        transferSize: 245760,
+        encodedBodySize: 245760,
+        decodedBodySize: 245760,
+      } as unknown as PerformanceResourceTiming;
+
+      observerCallbacks[0]?.(
+        {
+          getEntries: () => [segmentEntry],
+        } as unknown as PerformanceObserverEntryList,
+        {} as PerformanceObserver,
+      );
+    });
+
+    expect(await screen.findByText("1 recebido")).toBeInTheDocument();
+    expect(screen.getAllByText("segment-00002.ts")).toHaveLength(2);
+    expect(screen.getByText("#obs-1")).toBeInTheDocument();
+    expect(screen.getByText("240 KB")).toBeInTheDocument();
   });
 });
