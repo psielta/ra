@@ -57,12 +57,14 @@ export function useUpdateResource(id: string) {
       const { data } = await api.patch<ResourceDto>(`/resources/${id}`, input);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (resource) => {
+      queryClient.setQueryData([...resourcesQueryKey, id], resource);
       void queryClient.invalidateQueries({ queryKey: resourcesQueryKey });
       void queryClient.invalidateQueries({
         queryKey: [...resourcesQueryKey, id],
       });
       void queryClient.invalidateQueries({ queryKey: ["series"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "recent"] });
     },
   });
 }

@@ -36,7 +36,13 @@ export const updateSeriesSchema = createSeriesSchema
 
 export const updateResourceSchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
-  description: z.string().trim().max(1000).optional(),
+  description: z
+    .string()
+    .trim()
+    .max(1000)
+    .nullable()
+    .optional()
+    .transform((value) => (value === "" ? null : value)),
   seriesId: z.string().cuid().nullable().optional(),
 });
 

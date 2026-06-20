@@ -1,8 +1,10 @@
 "use client";
 
+import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { ResourceDeleteDialog } from "@/components/media/resource-delete-dialog";
 import { ResourcePlayer } from "@/components/media/resource-player";
@@ -19,23 +21,34 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useJobEventSources } from "@/hooks/use-job-events";
 import {
   useResource,
   useResources,
   useUpdateResource,
 } from "@/hooks/use-resources";
 import { useSeriesList } from "@/hooks/use-series";
-import { useJobEventSources } from "@/hooks/use-job-events";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
 
 export function ResourceDetail({ id }: { id: string }) {
   const router = useRouter();
   const { data: resource, isLoading, isError } = useResource(id);
   const { data: seriesList = [] } = useSeriesList();
   const updateResource = useUpdateResource(id);
-  const [seriesId, setSeriesId] = useState<string>("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [seriesId, setSeriesId] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  useEffect(() => {
+    if (!resource) return;
+
+    setTitle(resource.title ?? "");
+    setDescription(resource.description ?? "");
+    setSeriesId(resource.series?.id ?? "");
+  }, [resource]);
+
   const jobTargets = useMemo(
     () =>
       resource?.status === "processing" && resource.jobId
@@ -44,18 +57,29 @@ export function ResourceDetail({ id }: { id: string }) {
     [resource],
   );
   useJobEventSources(jobTargets);
+
+  const relatedSeriesId = resource?.series?.id;
   const relatedFilters = useMemo(
     () =>
-      resource?.series
-        ? { seriesId: resource.series.id, mediaType: "video" as const }
+      relatedSeriesId
+        ? { seriesId: relatedSeriesId, mediaType: "video" as const }
         : undefined,
-    [resource?.series],
+    [relatedSeriesId],
   );
   const { data: relatedVideos = [], isLoading: isLoadingRelatedVideos } =
-    useResources(relatedFilters, { enabled: Boolean(resource?.series?.id) });
+    useResources(relatedFilters, { enabled: Boolean(relatedSeriesId) });
   const suggestedVideos = useMemo(
     () => relatedVideos.filter((item) => item.id !== resource?.id),
     [relatedVideos, resource?.id],
+  );
+
+  const titleValue = title.trim();
+  const descriptionValue = description.trim();
+  const hasMetadataChanges = Boolean(
+    resource &&
+    (titleValue !== (resource.title ?? "") ||
+      descriptionValue !== (resource.description ?? "") ||
+      seriesId !== (resource.series?.id ?? "")),
   );
 
   if (isLoading) {
@@ -81,8 +105,6 @@ export function ResourceDetail({ id }: { id: string }) {
     );
   }
 
-  const currentSeriesId = seriesId || resource.series?.id || "";
-
   return (
     <div className="space-y-6">
       <Button asChild variant="ghost" className="px-0">
@@ -102,7 +124,7 @@ export function ResourceDetail({ id }: { id: string }) {
             {resource.series ? (
               <>
                 {" "}
-                ·{" "}
+                -{" "}
                 <Link
                   href={`/series/${resource.series.id}`}
                   className="text-gold hover:underline"
@@ -136,22 +158,27 @@ export function ResourceDetail({ id }: { id: string }) {
         <CardHeader>
           <CardTitle className="text-lg">Detalhes</CardTitle>
           <CardDescription>
-            Classifique este recurso em uma série (categoria).
+            Edite o nome, a descrição e a série deste recurso.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm leading-relaxed">
-            {resource.description ?? "Sem descrição."}
-          </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="resource-title">Título</Label>
+              <Input
+                id="resource-title"
+                value={title}
+                maxLength={120}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Nome do recurso"
+              />
+            </div>
 
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-56 space-y-2">
-              <label className="text-sm font-medium" htmlFor="resource-series">
-                Série
-              </label>
+            <div className="space-y-2">
+              <Label htmlFor="resource-series">Série</Label>
               <select
                 id="resource-series"
-                value={currentSeriesId}
+                value={seriesId}
                 onChange={(event) => setSeriesId(event.target.value)}
                 className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
               >
@@ -163,15 +190,36 @@ export function ResourceDetail({ id }: { id: string }) {
                 ))}
               </select>
             </div>
+          </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="resource-description">Descrição</Label>
+            <textarea
+              id="resource-description"
+              value={description}
+              maxLength={1000}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Descrição opcional"
+              className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-24 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-muted-foreground text-xs">
+              O nome aparece na biblioteca, nas séries e nas sugestões.
+            </p>
             <Button
-              disabled={updateResource.isPending}
+              disabled={
+                updateResource.isPending || !hasMetadataChanges || !titleValue
+              }
               onClick={async () => {
                 try {
                   await updateResource.mutateAsync({
-                    seriesId: currentSeriesId || null,
+                    title: titleValue,
+                    description: descriptionValue || null,
+                    seriesId: seriesId || null,
                   });
-                  toast.success("Série atualizada");
+                  toast.success("Recurso atualizado");
                 } catch (error) {
                   toast.error("Não foi possível atualizar", {
                     description:
@@ -182,7 +230,7 @@ export function ResourceDetail({ id }: { id: string }) {
                 }
               }}
             >
-              Salvar classificação
+              Salvar alterações
             </Button>
           </div>
         </CardContent>
@@ -193,17 +241,17 @@ export function ResourceDetail({ id }: { id: string }) {
         <section className="space-y-3">
           <div>
             <h3 className="font-display text-lg tracking-wide">
-              Videos da mesma serie
+              Vídeos da mesma série
             </h3>
             <p className="text-muted-foreground text-sm">
-              Sugestoes relacionadas a {resource.series.title}.
+              Sugestões relacionadas a {resource.series.title}.
             </p>
           </div>
 
           {isLoadingRelatedVideos ? (
             <div className="text-muted-foreground flex items-center gap-2 text-sm">
               <Loader2 className="size-4 animate-spin" />
-              Carregando sugestoes...
+              Carregando sugestões...
             </div>
           ) : (
             <div className="flex gap-4 overflow-x-auto pb-2">

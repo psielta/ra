@@ -47,6 +47,7 @@ async function uploadAndWaitReady(
   ).toBeTruthy();
 
   const resource = (await response.json()) as {
+    title: string | null;
     status: string;
     playbackUrl: string | null;
     coverUrl: string | null;
@@ -60,6 +61,30 @@ async function uploadAndWaitReady(
     expect(resource.coverUrl).toContain("http://localhost:14009/outputs/");
     expect(resource.coverUrl).toContain("cover.jpg");
   }
+
+  const updatedTitle = `${input.title} renomeado`;
+  await page.getByLabel("Título").fill(updatedTitle);
+  await page.getByRole("button", { name: "Salvar alterações" }).click();
+  await expect(page.getByText("Recurso atualizado")).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(page.getByRole("heading", { name: updatedTitle })).toBeVisible({
+    timeout: 15_000,
+  });
+
+  const updatedResponse = await page.request.get(
+    `/api/resources/${resourceId}`,
+  );
+  expect(
+    updatedResponse.ok(),
+    `updated resource API status ${updatedResponse.status()}: ${await updatedResponse.text()}`,
+  ).toBeTruthy();
+
+  const updatedResource = (await updatedResponse.json()) as {
+    title: string | null;
+  };
+
+  expect(updatedResource.title).toBe(updatedTitle);
 }
 
 test("processa MP3 e MP4 ate playback", async ({ page }) => {
