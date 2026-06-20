@@ -1,30 +1,188 @@
+name: ra-prod
+
 services:
-  app:
+  ra-postgres:
+    image: postgres:16-alpine
+    container_name: ra-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      TZ: ${TZ:-America/Sao_Paulo}
+    volumes:
+      - ra_postgres_data:/var/lib/postgresql/data
+    networks:
+      - ra-internal
+    healthcheck:
+      test:
+        ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  ra-redis:
+    image: redis:7-alpine
+    container_name: ra-redis
+    restart: unless-stopped
+    volumes:
+      - ra_redis_data:/data
+    networks:
+      - ra-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  ra-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ra-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?RABBITMQ_DEFAULT_USER is required}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?RABBITMQ_DEFAULT_PASS is required}
+    volumes:
+      - ra_rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - ra-internal
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  ra-minio:
+    image: minio/minio:latest
+    container_name: ra-minio
+    restart: unless-stopped
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+    volumes:
+      - ra_minio_data:/data
+    networks:
+      - ra-internal
+
+  ra-media:
+    image: nginx:1.27-alpine
+    container_name: ra-media
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - ra-internal
+      - trx_trxnet
+    depends_on:
+      - ra-minio
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health | grep -q ok"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  ra-app:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: ra-app
     restart: unless-stopped
-    ports:
-      - "14001:3000"
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ra?schema=public
-      AUTH_URL: http://localhost:14001
-      NEXT_PUBLIC_APP_URL: http://localhost:14001
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@ra-postgres:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
+      AUTH_URL: https://ra.mateussalgueiro.com.br
+      NEXT_PUBLIC_APP_URL: https://ra.mateussalgueiro.com.br
       PORT: "3000"
       NODE_ENV: production
-      MINIO_ENDPOINT: minio
+      MINIO_ENDPOINT: ra-minio
       MINIO_PORT: "9000"
-      MINIO_PUBLIC_URL: http://localhost:14007
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
-      REDIS_URL: redis://redis:6379
-      WORKER_API_TOKEN: ${WORKER_API_TOKEN:-ra-dev-worker-token}
-    volumes: []
+      MINIO_USE_SSL: "false"
+      MINIO_PUBLIC_URL: https://ra.mateussalgueiro.com.br
+      NGINX_MEDIA_URL: https://ra.mateussalgueiro.com.br
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:?RABBITMQ_DEFAULT_USER is required}:${RABBITMQ_DEFAULT_PASS:?RABBITMQ_DEFAULT_PASS is required}@ra-rabbitmq:5672
+      REDIS_URL: redis://ra-redis:6379
+      WORKER_API_TOKEN: ${WORKER_API_TOKEN:?WORKER_API_TOKEN is required}
+    networks:
+      - ra-internal
+      - trx_trxnet
     depends_on:
-      postgres:
+      ra-postgres:
         condition: service_healthy
-      rabbitmq:
+      ra-rabbitmq:
         condition: service_healthy
-      redis:
+      ra-redis:
         condition: service_healthy
+      ra-minio:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'wget -qO- http://127.0.0.1:3000/api/health | grep -q ''"status":"ok"''',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  ra-worker:
+    build:
+      context: .
+      dockerfile: worker/WorkerServiceRaMedia/Dockerfile
+    container_name: ra-worker
+    restart: unless-stopped
+    environment:
+      ConnectionStrings__Redis: ra-redis:6379,abortConnect=false,connectRetry=3,connectTimeout=5000,syncTimeout=5000,keepAlive=60
+      RabbitMQ__Host: ra-rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__Username: ${RABBITMQ_DEFAULT_USER:?RABBITMQ_DEFAULT_USER is required}
+      RabbitMQ__Password: ${RABBITMQ_DEFAULT_PASS:?RABBITMQ_DEFAULT_PASS is required}
+      RabbitMQ__VirtualHost: /
+      RabbitMQ__ExchangeName: media-transcode-exchange
+      RabbitMQ__QueueName: media-transcode-jobs
+      RabbitMQ__RoutingKey: media.transcode
+      Storage__Endpoint: ra-minio
+      Storage__Port: "9000"
+      Storage__UseSSL: "false"
+      Storage__AccessKey: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      Storage__SecretKey: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+      Storage__Bucket: ${MINIO_BUCKET:-ra-media}
+      Media__PublicBaseUrl: https://ra.mateussalgueiro.com.br
+      WorkerApi__BaseUrl: http://ra-app:3000
+      WorkerApi__Token: ${WORKER_API_TOKEN:?WORKER_API_TOKEN is required}
+      Observability__Prometheus__Enabled: "true"
+      Observability__Prometheus__Port: "14010"
+    networks:
+      - ra-internal
+    depends_on:
+      ra-app:
+        condition: service_healthy
+      ra-rabbitmq:
+        condition: service_healthy
+      ra-redis:
+        condition: service_healthy
+      ra-minio:
+        condition: service_started
+
+networks:
+  ra-internal:
+    name: ra_internal
+    driver: bridge
+  trx_trxnet:
+    external: true
+
+volumes:
+  ra_postgres_data:
+    name: ra_postgres_data
+  ra_minio_data:
+    name: ra_minio_data
+  ra_redis_data:
+    name: ra_redis_data
+  ra_rabbitmq_data:
+    name: ra_rabbitmq_data

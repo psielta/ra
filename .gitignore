@@ -36,6 +36,9 @@ yarn-error.log*
 .env
 .env*.local
 
+# local production runbook with server credentials
+/DEPLOY.md
+
 # vercel
 .vercel
 

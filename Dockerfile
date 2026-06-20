@@ -8,7 +8,7 @@ FROM base AS deps
 
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 FROM base AS builder
 
@@ -31,7 +31,9 @@ RUN addgroup --system --gid 1001 nodejs \
 
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev --ignore-scripts \
+  && npx prisma generate \
+  && npm cache clean --force
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next

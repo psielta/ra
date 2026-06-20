@@ -1,0 +1,14 @@
+ra.mateussalgueiro.com.br {
+  request_body {
+    max_size 600MB
+  }
+
+  @media path /outputs/* /ra-media/*
+  handle @media {
+    reverse_proxy ra-media:80
+  }
+
+  handle {
+    reverse_proxy ra-app:3000
+  }
+}
