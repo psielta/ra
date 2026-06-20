@@ -407,9 +407,3 @@ PowerShell quebra em `D:\ra` por causa de `\r` — use `cmd /c`.
 - [`CLAUDE.md`](./CLAUDE.md) — guia detalhado para Claude Code / Cursor
 
 Leia antes de implementar o pipeline de mídia, o worker .NET ou novos serviços no Compose.
-
----
-
-## Licença
-
-Projeto de portfolio — uso conforme definido pelo autor do repositório.
