@@ -6,16 +6,20 @@ const redisLogger = createRequestLogger({ module: "redis" });
 
 const globalForRedis = globalThis as unknown as {
   redisPublisher: Redis | null | undefined;
+  redisDisabledLogged?: boolean;
 };
 
 function createRedisClient(): Redis | null {
   const url = process.env.REDIS_URL?.trim();
 
   if (!url) {
-    redisLogger.warn({
-      event: "redis.disabled",
-      reason: "REDIS_URL not set — using in-memory notification bus",
-    });
+    if (!globalForRedis.redisDisabledLogged) {
+      globalForRedis.redisDisabledLogged = true;
+      redisLogger.warn({
+        event: "redis.disabled",
+        reason: "REDIS_URL not set — using in-memory notification bus",
+      });
+    }
     return null;
   }
 
