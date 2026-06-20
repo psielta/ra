@@ -4,6 +4,7 @@ import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { SeriesCommandMenuProvider } from "@/components/admin/series-command-menu";
 import { MediaUploadDrawer } from "@/components/media/media-upload-drawer";
+import { PersistentMediaPlayer } from "@/components/media/persistent-media-player";
 import { RealtimeProvider } from "@/components/notifications/realtime-provider";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
@@ -35,6 +36,7 @@ export function AdminShell({ children, title }: AdminShellProps) {
           </div>
 
           <MediaUploadDrawer />
+          <PersistentMediaPlayer />
         </div>
       </SeriesCommandMenuProvider>
     </RealtimeProvider>

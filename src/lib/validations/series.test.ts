@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  bulkUpdateResourcesSchema,
   createSeriesSchema,
   slugifySeriesTitle,
   updateResourceSchema,
@@ -12,6 +13,27 @@ describe("slugifySeriesTitle", () => {
       "minhas-musicas-2026",
     );
     expect(slugifySeriesTitle("  Coletânea #1  ")).toBe("coletanea-1");
+  });
+});
+
+describe("bulkUpdateResourcesSchema", () => {
+  it("valida organizacao em lote de recursos", () => {
+    const assignResult = bulkUpdateResourcesSchema.safeParse({
+      ids: ["cmqmded510001v8h4qpnlvby3", "cmqmf16pz0003v83o50b8gnw2"],
+      seriesId: "cmqmf8c3a0005v83ormd1u0ad",
+    });
+    const removeResult = bulkUpdateResourcesSchema.safeParse({
+      ids: ["cmqmded510001v8h4qpnlvby3"],
+      seriesId: null,
+    });
+    const emptyResult = bulkUpdateResourcesSchema.safeParse({
+      ids: [],
+      seriesId: null,
+    });
+
+    expect(assignResult.success).toBe(true);
+    expect(removeResult.success).toBe(true);
+    expect(emptyResult.success).toBe(false);
   });
 });
 

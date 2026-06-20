@@ -3,7 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/axios";
+import type { MediaUploadResponse } from "@/lib/validations/media";
 import type {
+  BulkUpdateResourcesInput,
   ResourceDto,
   UpdateResourceInput,
 } from "@/lib/validations/series";
@@ -89,6 +91,23 @@ export function useDeleteResource() {
   });
 }
 
+export function useBulkUpdateResources() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: BulkUpdateResourcesInput) => {
+      const { data } = await api.patch<{ count: number }>("/resources", input);
+      return data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: resourcesQueryKey });
+      void queryClient.invalidateQueries({ queryKey: ["series"] });
+      void queryClient.invalidateQueries({ queryKey: ["queue"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "recent"] });
+    },
+  });
+}
+
 export function useUploadMedia() {
   const queryClient = useQueryClient();
 
@@ -105,9 +124,13 @@ export function useUploadMedia() {
       if (input.description) formData.append("description", input.description);
       if (input.seriesId) formData.append("seriesId", input.seriesId);
 
-      const { data } = await api.post("/media/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const { data } = await api.post<MediaUploadResponse>(
+        "/media/upload",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
 
       return data;
     },

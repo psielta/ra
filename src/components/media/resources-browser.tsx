@@ -1,26 +1,77 @@
 "use client";
 
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ExternalLink, Music, Search, Video } from "lucide-react";
+import {
+  ExternalLink,
+  FolderInput,
+  Loader2,
+  Music,
+  Search,
+  Video,
+} from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEventHandler,
+} from "react";
+import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { ResourceStatusBadge } from "@/components/media/resource-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useJobEventSources } from "@/hooks/use-job-events";
-import { useResources } from "@/hooks/use-resources";
+import { useBulkUpdateResources, useResources } from "@/hooks/use-resources";
 import { useSeriesList } from "@/hooks/use-series";
 import type { ResourceDto } from "@/lib/validations/series";
+
+function IndeterminateCheckbox({
+  checked,
+  indeterminate,
+  disabled,
+  onChange,
+  ariaLabel,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  disabled?: boolean;
+  onChange: ChangeEventHandler<HTMLInputElement>;
+  ariaLabel: string;
+}) {
+  const ref = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = Boolean(indeterminate && !checked);
+    }
+  }, [checked, indeterminate]);
+
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      disabled={disabled}
+      onChange={onChange}
+      aria-label={ariaLabel}
+      className="border-input accent-gold size-4 rounded"
+    />
+  );
+}
 
 export function ResourcesBrowser() {
   const [mediaType, setMediaType] = useState<"" | "audio" | "video">("");
   const [seriesId, setSeriesId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [bulkSeriesId, setBulkSeriesId] = useState("");
+  const bulkUpdateResources = useBulkUpdateResources();
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -43,6 +94,15 @@ export function ResourcesBrowser() {
 
   const { data: resources = [], isLoading } = useResources(filters);
   const { data: seriesList = [] } = useSeriesList();
+  const selectedResources = useMemo(
+    () => resources.filter((resource) => rowSelection[resource.id]),
+    [resources, rowSelection],
+  );
+  const selectedCount = selectedResources.length;
+  const selectedIds = useMemo(
+    () => selectedResources.map((resource) => resource.id),
+    [selectedResources],
+  );
   const jobTargets = useMemo(
     () =>
       resources
@@ -59,6 +119,25 @@ export function ResourcesBrowser() {
 
   const columns = useMemo<ColumnDef<ResourceDto>[]>(
     () => [
+      {
+        id: "select",
+        header: ({ table }) => (
+          <IndeterminateCheckbox
+            checked={table.getIsAllRowsSelected()}
+            indeterminate={table.getIsSomeRowsSelected()}
+            onChange={table.getToggleAllRowsSelectedHandler()}
+            ariaLabel="Selecionar todos os recursos"
+          />
+        ),
+        cell: ({ row }) => (
+          <IndeterminateCheckbox
+            checked={row.getIsSelected()}
+            disabled={!row.getCanSelect()}
+            onChange={row.getToggleSelectedHandler()}
+            ariaLabel={`Selecionar ${row.original.title ?? "recurso"}`}
+          />
+        ),
+      },
       {
         accessorKey: "title",
         header: "Recurso",
@@ -149,6 +228,28 @@ export function ResourcesBrowser() {
     [],
   );
 
+  async function handleBulkSeriesUpdate() {
+    if (!selectedIds.length || !bulkSeriesId) return;
+
+    try {
+      const result = await bulkUpdateResources.mutateAsync({
+        ids: selectedIds,
+        seriesId: bulkSeriesId === "__none" ? null : bulkSeriesId,
+      });
+
+      toast.success("Recursos atualizados", {
+        description: `${result.count} item(ns) reorganizado(s).`,
+      });
+      setRowSelection({});
+      setBulkSeriesId("");
+    } catch (error) {
+      toast.error("Nao foi possivel organizar os recursos", {
+        description:
+          error instanceof Error ? error.message : "Tente novamente.",
+      });
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
@@ -202,11 +303,69 @@ export function ResourcesBrowser() {
           </p>
         </div>
       ) : (
-        <DataTable
-          columns={columns}
-          data={resources}
-          emptyMessage="Nenhum recurso encontrado."
-        />
+        <div className="space-y-3">
+          {selectedCount > 0 ? (
+            <div className="border-gold/15 bg-muted/20 flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3">
+              <div className="text-sm">
+                <span className="font-medium">{selectedCount}</span>{" "}
+                selecionado(s)
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={bulkSeriesId}
+                  onChange={(event) => setBulkSeriesId(event.target.value)}
+                  className="border-input bg-background h-9 min-w-56 rounded-md border px-3 text-sm"
+                  aria-label="Serie para aplicar aos selecionados"
+                >
+                  <option value="">Escolher serie</option>
+                  <option value="__none">Remover da serie</option>
+                  {seriesList.map((series) => (
+                    <option key={series.id} value={series.id}>
+                      {series.title}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={
+                    !bulkSeriesId ||
+                    bulkUpdateResources.isPending ||
+                    selectedIds.length === 0
+                  }
+                  onClick={() => void handleBulkSeriesUpdate()}
+                >
+                  {bulkUpdateResources.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <FolderInput className="size-4" />
+                  )}
+                  Aplicar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setRowSelection({});
+                    setBulkSeriesId("");
+                  }}
+                >
+                  Limpar selecao
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          <DataTable
+            columns={columns}
+            data={resources}
+            emptyMessage="Nenhum recurso encontrado."
+            getRowId={(resource) => resource.id}
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+          />
+        </div>
       )}
     </div>
   );

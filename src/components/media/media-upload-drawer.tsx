@@ -15,7 +15,6 @@ export function MediaUploadDrawer() {
   const open = useUiStore((state) => state.uploadDrawerOpen);
   const seriesId = useUiStore((state) => state.uploadDrawerSeriesId);
   const setOpen = useUiStore((state) => state.setUploadDrawerOpen);
-  const closeUploadDrawer = useUiStore((state) => state.closeUploadDrawer);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -37,7 +36,6 @@ export function MediaUploadDrawer() {
           <MediaUploadForm
             key={seriesId ?? "no-series"}
             defaultSeriesId={seriesId ?? undefined}
-            onSuccess={closeUploadDrawer}
           />
         </div>
       </SheetContent>

@@ -7,10 +7,18 @@ import Hls, {
   type FragLoadingData,
 } from "hls.js";
 import { Activity, Headphones, Loader2, Video } from "lucide-react";
-import { useEffect, useReducer, useRef, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+  type RefObject,
+  type SyntheticEvent,
+} from "react";
 
 import { ResourceStatusBadge } from "@/components/media/resource-status-badge";
 import type { ResourceDto } from "@/lib/validations/series";
+import { useUiStore } from "@/stores/ui-store";
 
 const MAX_SEGMENT_HISTORY = 6;
 
@@ -182,7 +190,7 @@ function toSegmentTrace(
   };
 }
 
-function useHlsSource<T extends HTMLMediaElement>(
+export function useHlsSource<T extends HTMLMediaElement>(
   mediaRef: RefObject<T | null>,
   src: string,
 ) {
@@ -259,6 +267,78 @@ function useHlsSource<T extends HTMLMediaElement>(
   }, [mediaRef, src]);
 
   return diagnostics;
+}
+
+function usePersistentPlaybackEvents(resource: ResourceDto) {
+  const startPersistentPlayback = useUiStore(
+    (state) => state.startPersistentPlayback,
+  );
+  const updatePersistentPlayback = useUiStore(
+    (state) => state.updatePersistentPlayback,
+  );
+  const pauseTimerRef = useRef<number | null>(null);
+
+  const clearPauseTimer = useCallback(() => {
+    if (pauseTimerRef.current) {
+      window.clearTimeout(pauseTimerRef.current);
+      pauseTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => clearPauseTimer, [clearPauseTimer]);
+
+  const updateFromMedia = useCallback(
+    (media: HTMLMediaElement, playing?: boolean) => {
+      updatePersistentPlayback(resource.id, {
+        currentTime: media.currentTime,
+        duration: Number.isFinite(media.duration) ? media.duration : 0,
+        playing,
+      });
+    },
+    [resource.id, updatePersistentPlayback],
+  );
+
+  const handlePlay = useCallback(
+    (event: SyntheticEvent<HTMLMediaElement>) => {
+      clearPauseTimer();
+      startPersistentPlayback(resource);
+      updateFromMedia(event.currentTarget, true);
+    },
+    [clearPauseTimer, resource, startPersistentPlayback, updateFromMedia],
+  );
+
+  const handlePause = useCallback(
+    (event: SyntheticEvent<HTMLMediaElement>) => {
+      const media = event.currentTarget;
+      clearPauseTimer();
+      pauseTimerRef.current = window.setTimeout(() => {
+        updateFromMedia(media, false);
+      }, 200);
+    },
+    [clearPauseTimer, updateFromMedia],
+  );
+
+  const handleTimeUpdate = useCallback(
+    (event: SyntheticEvent<HTMLMediaElement>) => {
+      updateFromMedia(event.currentTarget);
+    },
+    [updateFromMedia],
+  );
+
+  const handleEnded = useCallback(
+    (event: SyntheticEvent<HTMLMediaElement>) => {
+      clearPauseTimer();
+      updateFromMedia(event.currentTarget, false);
+    },
+    [clearPauseTimer, updateFromMedia],
+  );
+
+  return {
+    handlePlay,
+    handlePause,
+    handleTimeUpdate,
+    handleEnded,
+  };
 }
 
 function HlsSegmentMonitor({ diagnostics }: { diagnostics: HlsDiagnostics }) {
@@ -363,9 +443,18 @@ function HlsSegmentMonitor({ diagnostics }: { diagnostics: HlsDiagnostics }) {
   );
 }
 
-function HlsAudioPlayer({ src, title }: { src: string; title: string }) {
+function HlsAudioPlayer({
+  resource,
+  src,
+  title,
+}: {
+  resource: ResourceDto;
+  src: string;
+  title: string;
+}) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const diagnostics = useHlsSource(audioRef, src);
+  const playbackEvents = usePersistentPlaybackEvents(resource);
 
   return (
     <div className="space-y-3">
@@ -375,6 +464,10 @@ function HlsAudioPlayer({ src, title }: { src: string; title: string }) {
         preload="metadata"
         className="w-full"
         aria-label={title}
+        onPlay={playbackEvents.handlePlay}
+        onPause={playbackEvents.handlePause}
+        onTimeUpdate={playbackEvents.handleTimeUpdate}
+        onEnded={playbackEvents.handleEnded}
       >
         Seu navegador nao suporta reproducao de audio HLS.
       </audio>
@@ -383,9 +476,18 @@ function HlsAudioPlayer({ src, title }: { src: string; title: string }) {
   );
 }
 
-function HlsVideoPlayer({ src, title }: { src: string; title: string }) {
+function HlsVideoPlayer({
+  resource,
+  src,
+  title,
+}: {
+  resource: ResourceDto;
+  src: string;
+  title: string;
+}) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const diagnostics = useHlsSource(videoRef, src);
+  const playbackEvents = usePersistentPlaybackEvents(resource);
 
   return (
     <div className="space-y-3">
@@ -395,6 +497,10 @@ function HlsVideoPlayer({ src, title }: { src: string; title: string }) {
         preload="metadata"
         className="aspect-video w-full rounded-md bg-black"
         aria-label={title}
+        onPlay={playbackEvents.handlePlay}
+        onPause={playbackEvents.handlePause}
+        onTimeUpdate={playbackEvents.handleTimeUpdate}
+        onEnded={playbackEvents.handleEnded}
       />
       <HlsSegmentMonitor diagnostics={diagnostics} />
     </div>
@@ -447,6 +553,7 @@ export function ResourcePlayer({ resource }: { resource: ResourceDto }) {
           Player HLS de audio
         </div>
         <HlsAudioPlayer
+          resource={resource}
           src={resource.playbackUrl}
           title={resource.title ?? "Audio"}
         />
@@ -462,6 +569,7 @@ export function ResourcePlayer({ resource }: { resource: ResourceDto }) {
           Player HLS de video
         </div>
         <HlsVideoPlayer
+          resource={resource}
           src={resource.playbackUrl}
           title={resource.title ?? "Video"}
         />

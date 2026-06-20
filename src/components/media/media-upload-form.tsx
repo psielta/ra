@@ -1,15 +1,24 @@
 "use client";
 
-import { Circle, Loader2, Mic, Square, Upload, Video, X } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Circle,
+  FileAudio,
+  FileVideo,
+  Loader2,
+  Mic,
+  Square,
+  Upload,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useUploadMedia } from "@/hooks/use-resources";
-import { useSeriesList } from "@/hooks/use-series";
 import { cn } from "@/lib/utils";
+import { validateMediaFile } from "@/lib/validations/media";
 
 type MediaUploadFormProps = {
   defaultSeriesId?: string;
@@ -17,6 +26,16 @@ type MediaUploadFormProps = {
 };
 
 type RecordingMode = "audio" | "video";
+type UploadStatus = "queued" | "uploading" | "done" | "error";
+
+type UploadQueueItem = {
+  id: number;
+  file: File;
+  status: UploadStatus;
+  progress: number;
+  error?: string;
+  mediaAssetId?: string;
+};
 
 function resolveRecordingMimeType(mode: RecordingMode) {
   if (typeof MediaRecorder === "undefined") {
@@ -39,16 +58,33 @@ function defaultMimeType(mode: RecordingMode) {
   return mode === "video" ? "video/webm" : "audio/webm";
 }
 
+function formatFileSize(bytes: number) {
+  if (!bytes) return "-";
+
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1) return `${mb.toFixed(1)} MB`;
+
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function statusIcon(status: UploadStatus) {
+  if (status === "done") return CheckCircle2;
+  if (status === "error") return AlertCircle;
+  if (status === "uploading") return Loader2;
+  return Upload;
+}
+
+function fileIcon(file: File) {
+  return file.type.startsWith("video/") ? FileVideo : FileAudio;
+}
+
 export function MediaUploadForm({
   defaultSeriesId,
   onSuccess,
 }: MediaUploadFormProps) {
   const uploadMedia = useUploadMedia();
-  const { data: seriesList = [] } = useSeriesList();
   const [dragOver, setDragOver] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [seriesId, setSeriesId] = useState(defaultSeriesId ?? "");
+  const [queue, setQueue] = useState<UploadQueueItem[]>([]);
   const [recordingMode, setRecordingMode] = useState<RecordingMode>("audio");
   const [isRecording, setIsRecording] = useState(false);
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
@@ -60,11 +96,21 @@ export function MediaUploadForm({
   const streamRef = useRef<MediaStream | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const recordedUrlRef = useRef<string | null>(null);
+  const queueSeqRef = useRef(0);
+  const pendingRef = useRef<UploadQueueItem[]>([]);
+  const runningRef = useRef(false);
+  const defaultSeriesIdRef = useRef(defaultSeriesId);
+  const onSuccessRef = useRef(onSuccess);
   const formId = useId();
-  const fileInputId = `${formId}-media-file`;
-  const titleInputId = `${formId}-title`;
-  const seriesInputId = `${formId}-series`;
-  const descriptionInputId = `${formId}-description`;
+  const fileInputId = `${formId}-media-files`;
+
+  useEffect(() => {
+    defaultSeriesIdRef.current = defaultSeriesId;
+  }, [defaultSeriesId]);
+
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+  }, [onSuccess]);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -97,37 +143,83 @@ export function MediaUploadForm({
     [clearRecording, stopStream],
   );
 
-  const handleFiles = useCallback(
-    async (files: FileList | File[]) => {
-      const file = Array.from(files)[0];
-      if (!file) return false;
-
-      try {
-        const result = await uploadMedia.mutateAsync({
-          file,
-          title: title.trim() || undefined,
-          description: description.trim() || undefined,
-          seriesId: seriesId || undefined,
-        });
-
-        toast.success("Upload enviado", {
-          description: "O arquivo entrou na fila de processamento.",
-        });
-
-        setTitle("");
-        setDescription("");
-        onSuccess?.(result.mediaAssetId);
-        return true;
-      } catch (error) {
-        toast.error("Falha no upload", {
-          description:
-            error instanceof Error ? error.message : "Tente novamente.",
-        });
-        return false;
-      }
+  const patchQueueItem = useCallback(
+    (id: number, changes: Partial<UploadQueueItem>) => {
+      setQueue((current) =>
+        current.map((item) =>
+          item.id === id ? { ...item, ...changes } : item,
+        ),
+      );
     },
-    [description, onSuccess, seriesId, title, uploadMedia],
+    [],
   );
+
+  async function pumpQueue() {
+    if (runningRef.current) return;
+
+    const next = pendingRef.current.shift();
+    if (!next) return;
+
+    runningRef.current = true;
+    patchQueueItem(next.id, { status: "uploading", progress: 10 });
+
+    try {
+      const result = await uploadMedia.mutateAsync({
+        file: next.file,
+        seriesId: defaultSeriesIdRef.current || undefined,
+      });
+
+      patchQueueItem(next.id, {
+        status: "done",
+        progress: 100,
+        mediaAssetId: result.mediaAssetId,
+      });
+      onSuccessRef.current?.(result.mediaAssetId);
+    } catch (error) {
+      patchQueueItem(next.id, {
+        status: "error",
+        error: error instanceof Error ? error.message : "Falha no upload",
+      });
+    } finally {
+      runningRef.current = false;
+      void pumpQueue();
+    }
+  }
+
+  function enqueueFiles(files: FileList | File[]) {
+    const additions: UploadQueueItem[] = [];
+    const rejected: string[] = [];
+
+    for (const file of Array.from(files)) {
+      const validation = validateMediaFile(file);
+      const item: UploadQueueItem = {
+        id: ++queueSeqRef.current,
+        file,
+        status: validation.ok ? "queued" : "error",
+        progress: 0,
+        error: validation.ok ? undefined : validation.message,
+      };
+
+      additions.push(item);
+      if (validation.ok) {
+        pendingRef.current.push(item);
+      } else {
+        rejected.push(file.name);
+      }
+    }
+
+    if (!additions.length) return;
+
+    setQueue((current) => [...current, ...additions]);
+
+    if (rejected.length) {
+      toast.error("Alguns arquivos foram recusados", {
+        description: rejected.slice(0, 3).join(", "),
+      });
+    }
+
+    void pumpQueue();
+  }
 
   const startRecording = useCallback(async () => {
     if (
@@ -224,14 +316,33 @@ export function MediaUploadForm({
     }
   }, []);
 
-  const uploadRecorded = useCallback(async () => {
+  function uploadRecorded() {
     if (!recordedFile) return;
 
-    const uploaded = await handleFiles([recordedFile]);
-    if (uploaded) {
-      clearRecording();
-    }
-  }, [clearRecording, handleFiles, recordedFile]);
+    enqueueFiles([recordedFile]);
+    clearRecording();
+  }
+
+  const removeQueued = useCallback((id: number) => {
+    pendingRef.current = pendingRef.current.filter((item) => item.id !== id);
+    setQueue((current) =>
+      current.filter(
+        (item) => !(item.id === id && item.status !== "uploading"),
+      ),
+    );
+  }, []);
+
+  const clearFinished = useCallback(() => {
+    setQueue((current) =>
+      current.filter(
+        (item) => item.status === "queued" || item.status === "uploading",
+      ),
+    );
+  }, []);
+
+  const hasFinished = queue.some(
+    (item) => item.status === "done" || item.status === "error",
+  );
 
   return (
     <div className="space-y-4">
@@ -239,7 +350,6 @@ export function MediaUploadForm({
         className={cn(
           "border-input bg-muted/20 flex min-h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 transition-colors",
           dragOver && "border-gold/50 bg-gold/5",
-          uploadMedia.isPending && "pointer-events-none opacity-70",
         )}
         onDragOver={(event) => {
           event.preventDefault();
@@ -249,33 +359,111 @@ export function MediaUploadForm({
         onDrop={(event) => {
           event.preventDefault();
           setDragOver(false);
-          void handleFiles(event.dataTransfer.files);
+          enqueueFiles(event.dataTransfer.files);
         }}
         onClick={() => fileInputRef.current?.click()}
       >
-        {uploadMedia.isPending ? (
-          <Loader2 className="text-gold size-8 animate-spin" />
-        ) : (
-          <Upload className="text-muted-foreground size-8" />
-        )}
+        <Upload className="text-muted-foreground size-8" />
         <div className="text-center">
-          <p className="font-medium">Arraste MP3 ou MP4 aqui</p>
+          <p className="font-medium">Arraste musicas e videos aqui</p>
           <p className="text-muted-foreground text-sm">
-            ou clique para selecionar arquivos de audio e video
+            ou clique para selecionar varios arquivos MP3, MP4 ou WebM
           </p>
         </div>
         <input
           id={fileInputId}
           ref={fileInputRef}
           type="file"
+          multiple
           accept="audio/mpeg,video/mp4,audio/webm,video/webm,.mp3,.mp4,.webm"
           className="hidden"
           onChange={(event) => {
-            if (event.target.files) void handleFiles(event.target.files);
+            if (event.target.files) enqueueFiles(event.target.files);
             event.target.value = "";
           }}
         />
       </div>
+
+      {queue.length ? (
+        <div className="border-gold/15 overflow-hidden rounded-lg border">
+          <div className="bg-muted/30 flex items-center justify-between gap-3 px-4 py-3">
+            <p className="text-sm font-medium">Fila de upload</p>
+            {hasFinished ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={clearFinished}
+              >
+                Limpar finalizados
+              </Button>
+            ) : null}
+          </div>
+          <ul className="divide-border divide-y">
+            {queue.map((item) => {
+              const StatusIcon = statusIcon(item.status);
+              const FileIcon = fileIcon(item.file);
+
+              return (
+                <li
+                  key={item.id}
+                  className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3"
+                >
+                  <span className="bg-gold/10 text-gold flex size-9 items-center justify-center rounded-md">
+                    <FileIcon className="size-4" />
+                  </span>
+                  <div className="min-w-0 space-y-1">
+                    <p className="truncate text-sm font-medium">
+                      {item.file.name}
+                    </p>
+                    {item.status === "uploading" ? (
+                      <div className="bg-muted h-1.5 overflow-hidden rounded-full">
+                        <div
+                          className="bg-gold h-full transition-all"
+                          style={{ width: `${item.progress}%` }}
+                        />
+                      </div>
+                    ) : item.status === "error" ? (
+                      <p className="text-destructive truncate text-xs">
+                        {item.error}
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground text-xs">
+                        {item.status === "done"
+                          ? "Enviado para processamento"
+                          : formatFileSize(item.file.size)}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <StatusIcon
+                      className={cn(
+                        "size-4",
+                        item.status === "uploading" && "text-gold animate-spin",
+                        item.status === "done" && "text-emerald-500",
+                        item.status === "error" && "text-destructive",
+                        item.status === "queued" && "text-muted-foreground",
+                      )}
+                    />
+                    {item.status !== "uploading" ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        onClick={() => removeQueued(item.id)}
+                        aria-label="Remover da fila"
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="border-gold/15 bg-muted/10 space-y-3 rounded-lg border p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -297,7 +485,7 @@ export function MediaUploadForm({
               onClick={() => setRecordingMode("video")}
               disabled={isRecording}
             >
-              <Video className="size-4" />
+              <FileVideo className="size-4" />
               Video
             </Button>
           </div>
@@ -313,12 +501,7 @@ export function MediaUploadForm({
                 Parar
               </Button>
             ) : (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={startRecording}
-                disabled={uploadMedia.isPending}
-              >
+              <Button type="button" variant="outline" onClick={startRecording}>
                 <Circle className="fill-destructive text-destructive size-4" />
                 Gravar
               </Button>
@@ -326,16 +509,8 @@ export function MediaUploadForm({
 
             {recordedFile ? (
               <>
-                <Button
-                  type="button"
-                  onClick={uploadRecorded}
-                  disabled={uploadMedia.isPending}
-                >
-                  {uploadMedia.isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Upload className="size-4" />
-                  )}
+                <Button type="button" onClick={uploadRecorded}>
+                  <Upload className="size-4" />
                   Enviar gravacao
                 </Button>
                 <Button type="button" variant="ghost" onClick={clearRecording}>
@@ -374,47 +549,6 @@ export function MediaUploadForm({
             <audio controls src={recordedUrl} className="w-full" />
           )
         ) : null}
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor={titleInputId}>Titulo (opcional)</Label>
-          <Input
-            id={titleInputId}
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Nome da faixa ou video"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor={seriesInputId}>Serie (categoria)</Label>
-          <select
-            id={seriesInputId}
-            value={seriesId}
-            onChange={(event) => setSeriesId(event.target.value)}
-            className="border-input bg-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 text-sm outline-none focus-visible:ring-2"
-          >
-            <option value="">Sem serie</option>
-            {seriesList.map((series) => (
-              <option key={series.id} value={series.id}>
-                {series.title}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor={descriptionInputId}>Descricao (opcional)</Label>
-        <textarea
-          id={descriptionInputId}
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          rows={3}
-          placeholder="Notas sobre esta midia"
-          className="border-input bg-background focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm outline-none focus-visible:ring-2"
-        />
       </div>
     </div>
   );
