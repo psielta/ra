@@ -260,6 +260,13 @@ export function useHlsSource<T extends HTMLMediaElement>(
 
       observedLoadedSegments.add(segment.url);
       dispatchDiagnostics({ type: "segment", segment });
+
+      if (isHlsMediaSegment(segment.url)) {
+        useUiStore.getState().pulseHlsSegment({
+          fileName: segment.fileName,
+          bytes: segment.bytes,
+        });
+      }
     };
 
     const maybePushObservedSegment = (entry: PerformanceEntry) => {

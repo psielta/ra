@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, User } from "lucide-react";
+import { Cpu, LogOut, User } from "lucide-react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 
@@ -18,6 +18,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { useUiStore } from "@/stores/ui-store";
 
 interface AdminHeaderProps {
   title?: string;
@@ -31,6 +33,47 @@ function getInitials(name?: string | null) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+function HlsMachineIndicator() {
+  const pulseId = useUiStore((state) => state.hlsSegmentPulseId);
+  const fileName = useUiStore((state) => state.hlsLastSegmentFileName);
+  const bytes = useUiStore((state) => state.hlsLastSegmentBytes);
+  const isActive = pulseId > 0;
+  const title = fileName
+    ? `HLS ${fileName}${typeof bytes === "number" ? ` (${bytes} bytes)` : ""}`
+    : "HLS idle";
+
+  return (
+    <div
+      key={pulseId}
+      role="status"
+      aria-live="polite"
+      aria-label={fileName ? `Segmento HLS recebido: ${fileName}` : "HLS idle"}
+      title={title}
+      data-testid="hls-machine-indicator"
+      className={cn(
+        "border-gold/15 bg-muted/20 text-muted-foreground hidden h-9 items-center gap-2 rounded-md border px-2 font-mono text-[10px] shadow-inner sm:flex",
+        isActive && "hls-machine-pulse text-gold",
+      )}
+    >
+      <Cpu className="size-3.5 shrink-0" aria-hidden="true" />
+      <span
+        className="hls-machine-led bg-muted-foreground/35 size-2 shrink-0 rounded-full"
+        aria-hidden="true"
+      />
+      <span className="flex h-4 items-end gap-0.5" aria-hidden="true">
+        <span className="hls-machine-bar bg-muted-foreground/35 block h-1.5 w-1 rounded-full" />
+        <span className="hls-machine-bar bg-muted-foreground/35 block h-3 w-1 rounded-full" />
+        <span className="hls-machine-bar bg-muted-foreground/35 block h-2 w-1 rounded-full" />
+        <span className="hls-machine-bar bg-muted-foreground/35 block h-3.5 w-1 rounded-full" />
+      </span>
+      <span className="hidden leading-none lg:inline">HLS</span>
+      <span className="sr-only">
+        {fileName ? `Segmento HLS ${fileName}` : "HLS idle"}
+      </span>
+    </div>
+  );
 }
 
 export function AdminHeader({ title = "Dashboard" }: AdminHeaderProps) {
@@ -54,6 +97,8 @@ export function AdminHeader({ title = "Dashboard" }: AdminHeaderProps) {
 
       <div className="flex items-center gap-2 sm:gap-3">
         <SeriesCommandTrigger />
+
+        <HlsMachineIndicator />
 
         <UploadDrawerTrigger size="sm">
           <span className="hidden sm:inline">Enviar mídia</span>

@@ -19,6 +19,10 @@ interface UiState {
   persistentDuration: number;
   persistentPlaying: boolean;
   persistentPlaylist: PersistentPlaylist | null;
+  hlsSegmentPulseId: number;
+  hlsLastSegmentFileName: string | null;
+  hlsLastSegmentBytes: number | null;
+  hlsLastSegmentReceivedAt: number | null;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   openUploadDrawer: (seriesId?: string | null) => void;
@@ -45,6 +49,10 @@ interface UiState {
   advancePersistentPlaylist: () => void;
   playPersistentPlaylistIndex: (index: number) => void;
   closePersistentPlayback: () => void;
+  pulseHlsSegment: (segment: {
+    fileName: string;
+    bytes: number | null;
+  }) => void;
 }
 
 function playableResources(resources: ResourceDto[]) {
@@ -81,6 +89,10 @@ export const useUiStore = create<UiState>()(
       persistentDuration: 0,
       persistentPlaying: false,
       persistentPlaylist: null,
+      hlsSegmentPulseId: 0,
+      hlsLastSegmentFileName: null,
+      hlsLastSegmentBytes: null,
+      hlsLastSegmentReceivedAt: null,
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
@@ -234,6 +246,13 @@ export const useUiStore = create<UiState>()(
           persistentPlaying: false,
           persistentPlaylist: null,
         }),
+      pulseHlsSegment: (segment) =>
+        set((state) => ({
+          hlsSegmentPulseId: state.hlsSegmentPulseId + 1,
+          hlsLastSegmentFileName: segment.fileName,
+          hlsLastSegmentBytes: segment.bytes,
+          hlsLastSegmentReceivedAt: Date.now(),
+        })),
     }),
     {
       name: "ra-ui",

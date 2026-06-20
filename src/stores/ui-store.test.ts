@@ -30,6 +30,10 @@ describe("useUiStore playlist playback", () => {
       persistentDuration: 0,
       persistentPlaying: false,
       persistentPlaylist: null,
+      hlsSegmentPulseId: 0,
+      hlsLastSegmentFileName: null,
+      hlsLastSegmentBytes: null,
+      hlsLastSegmentReceivedAt: null,
     });
   });
 
@@ -55,5 +59,24 @@ describe("useUiStore playlist playback", () => {
 
     expect(useUiStore.getState().persistentResource?.id).toBe(second.id);
     expect(useUiStore.getState().persistentPlaying).toBe(true);
+  });
+
+  it("registra pulsos de segmentos HLS recebidos", () => {
+    useUiStore.getState().pulseHlsSegment({
+      fileName: "segment_000.ts",
+      bytes: 31_744,
+    });
+
+    useUiStore.getState().pulseHlsSegment({
+      fileName: "segment_001.ts",
+      bytes: null,
+    });
+
+    const state = useUiStore.getState();
+
+    expect(state.hlsSegmentPulseId).toBe(2);
+    expect(state.hlsLastSegmentFileName).toBe("segment_001.ts");
+    expect(state.hlsLastSegmentBytes).toBeNull();
+    expect(typeof state.hlsLastSegmentReceivedAt).toBe("number");
   });
 });

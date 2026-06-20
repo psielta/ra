@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ResourcePlayer } from "@/components/media/resource-player";
 import type { ResourceDto } from "@/lib/validations/series";
+import { useUiStore } from "@/stores/ui-store";
 
 const hlsMock = vi.hoisted(() => {
   type Listener = (event: string, data: unknown) => void;
@@ -80,6 +81,12 @@ describe("ResourcePlayer", () => {
     hlsMock.MockHls.instances = [];
     hlsMock.MockHls.isSupported.mockReturnValue(true);
     vi.spyOn(HTMLMediaElement.prototype, "canPlayType").mockReturnValue("");
+    useUiStore.setState({
+      hlsSegmentPulseId: 0,
+      hlsLastSegmentFileName: null,
+      hlsLastSegmentBytes: null,
+      hlsLastSegmentReceivedAt: null,
+    });
   });
 
   afterEach(() => {
@@ -128,6 +135,11 @@ describe("ResourcePlayer", () => {
     expect(screen.getByText("#1")).toBeInTheDocument();
     expect(screen.getByText("4.2s")).toBeInTheDocument();
     expect(screen.getByText("L0 - 184 KB")).toBeInTheDocument();
+    expect(useUiStore.getState().hlsSegmentPulseId).toBe(1);
+    expect(useUiStore.getState().hlsLastSegmentFileName).toBe(
+      "segment-00001.ts",
+    );
+    expect(useUiStore.getState().hlsLastSegmentBytes).toBe(188416);
   });
 
   it("updates the monitor from resource timing when native HLS loads a segment", async () => {
@@ -175,5 +187,10 @@ describe("ResourcePlayer", () => {
     expect(screen.getAllByText("segment-00002.ts")).toHaveLength(2);
     expect(screen.getByText("#obs-1")).toBeInTheDocument();
     expect(screen.getByText("240 KB")).toBeInTheDocument();
+    expect(useUiStore.getState().hlsSegmentPulseId).toBe(1);
+    expect(useUiStore.getState().hlsLastSegmentFileName).toBe(
+      "segment-00002.ts",
+    );
+    expect(useUiStore.getState().hlsLastSegmentBytes).toBe(245760);
   });
 });
