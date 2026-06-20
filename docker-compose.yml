@@ -42,6 +42,17 @@ services:
     volumes:
       - ra_minio_data:/data
 
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: ra-nginx
+    restart: unless-stopped
+    ports:
+      - "14009:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - minio
+
   redis:
     image: redis:7-alpine
     container_name: ra-redis
@@ -95,6 +106,9 @@ services:
       MINIO_ENDPOINT: minio
       MINIO_PORT: "9000"
       MINIO_PUBLIC_URL: http://localhost:14007
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      REDIS_URL: redis://redis:6379
+      WORKER_API_TOKEN: ${WORKER_API_TOKEN:-ra-dev-worker-token}
     volumes:
       - .:/app
       - ra_node_modules:/app/node_modules
@@ -102,7 +116,50 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     command: sh docker/entrypoint.dev.sh
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/WorkerServiceRaMedia/Dockerfile
+    container_name: ra-worker
+    restart: unless-stopped
+    environment:
+      ConnectionStrings__Redis: redis:6379,abortConnect=false,connectRetry=3,connectTimeout=5000,syncTimeout=5000,keepAlive=60
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__Username: guest
+      RabbitMQ__Password: guest
+      RabbitMQ__VirtualHost: /
+      RabbitMQ__ExchangeName: media-transcode-exchange
+      RabbitMQ__QueueName: media-transcode-jobs
+      RabbitMQ__RoutingKey: media.transcode
+      Storage__Endpoint: minio
+      Storage__Port: "9000"
+      Storage__UseSSL: "false"
+      Storage__AccessKey: minio
+      Storage__SecretKey: miniosecret
+      Storage__Bucket: ra-media
+      Media__PublicBaseUrl: http://localhost:14009
+      WorkerApi__BaseUrl: http://app:3000
+      WorkerApi__Token: ${WORKER_API_TOKEN:-ra-dev-worker-token}
+      Observability__Prometheus__Enabled: "true"
+      Observability__Prometheus__Port: "14010"
+    ports:
+      - "14010:14010"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_started
+      minio:
+        condition: service_started
 
 volumes:
   ra_postgres_data:

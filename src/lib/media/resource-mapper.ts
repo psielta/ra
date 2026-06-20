@@ -41,6 +41,7 @@ export function toResourceDto(asset: AssetWithRelations): ResourceDto {
     status: toResourceStatus(latestJob?.status),
     progress: latestJob?.progress ?? 0,
     playbackUrl: asset.playbackUrl,
+    coverUrl: asset.coverUrl,
     jobId: latestJob?.id ?? null,
     errorMessage: latestJob?.errorMessage ?? null,
     series: asset.series,

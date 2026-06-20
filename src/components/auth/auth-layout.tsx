@@ -12,17 +12,17 @@ const features = [
   {
     icon: Upload,
     label: "Envie MP3 e MP4",
-    description: "Upload ou gravação direto no navegador",
+    description: "Upload ou gravacao direto no navegador",
   },
   {
     icon: Video,
     label: "Streaming HLS",
-    description: "Vídeos convertidos para assistir em qualquer tela",
+    description: "MP3 e MP4 convertidos para assistir em qualquer tela",
   },
   {
     icon: Music,
     label: "Sua biblioteca",
-    description: "Organize e reproduza suas músicas e vídeos",
+    description: "Organize e reproduza suas musicas e videos",
   },
 ];
 
@@ -37,11 +37,11 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
         <div className="space-y-8">
           <div className="space-y-4">
             <h2 className="font-display text-papyrus text-2xl leading-tight tracking-wide">
-              Seu portfolio de música e vídeo
+              Seu portfolio de musica e video
             </h2>
             <p className="text-papyrus/80 max-w-md text-sm leading-relaxed">
-              Grave, envie e assista ao seu próprio conteúdo. Vídeos são
-              convertidos para streaming HLS; o progresso da conversão aparece
+              Grave, envie e assista ao seu proprio conteudo. MP3 e MP4 sao
+              convertidos para streaming HLS; o progresso da conversao aparece
               em tempo real no painel.
             </p>
           </div>
@@ -67,7 +67,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
 
         <div className="text-papyrus/50 flex items-center gap-3 text-xs tracking-widest uppercase">
           <span className="bg-gold/40 h-px w-8" />
-          <span>MP3 · MP4 · HLS</span>
+          <span>MP3 - MP4 - HLS</span>
         </div>
       </div>
 

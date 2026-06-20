@@ -16,7 +16,10 @@ type ResourceFilters = {
   q?: string;
 };
 
-export function useResources(filters?: ResourceFilters) {
+export function useResources(
+  filters?: ResourceFilters,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: [...resourcesQueryKey, filters ?? {}],
     queryFn: async () => {
@@ -31,6 +34,7 @@ export function useResources(filters?: ResourceFilters) {
       );
       return data;
     },
+    enabled: options?.enabled ?? true,
   });
 }
 

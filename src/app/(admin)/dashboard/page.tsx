@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 
 export const metadata = {
-  title: "Início",
+  title: "Inicio",
 };
 
 export default async function DashboardPage() {
@@ -34,19 +34,18 @@ export default async function DashboardPage() {
             {today}
           </p>
           <h2 className="font-display text-2xl tracking-wide sm:text-3xl">
-            Olá, {user?.name ?? "artista"}
+            Ola, {user?.name ?? "artista"}
           </h2>
           <p className="text-muted-foreground max-w-2xl text-sm leading-relaxed">
-            Este é o seu espaço para gravar e enviar músicas (MP3) e vídeos
-            (MP4), acompanhar a conversão em tempo real e assistir tudo na sua
-            biblioteca pessoal. Vídeos são preparados para streaming HLS; áudios
-            ficam prontos para reprodução direta.
+            Este e o seu espaco para gravar e enviar musicas (MP3) e videos
+            (MP4), acompanhar a conversao em tempo real e assistir tudo na sua
+            biblioteca pessoal. MP3 e MP4 sao preparados para streaming HLS.
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
             <Button asChild className="bg-lapis hover:bg-lapis/90 text-papyrus">
               <Link href="/dashboard/upload">
                 <Upload className="size-4" />
-                Enviar mídia
+                Enviar midia
               </Link>
             </Button>
             <Button asChild variant="outline" className="border-gold/25">
@@ -66,14 +65,14 @@ export default async function DashboardPage() {
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
               <Upload className="size-3.5" />
-              Upload e gravação
+              Upload e gravacao
             </CardDescription>
-            <CardTitle className="text-lg">Em breve</CardTitle>
+            <CardTitle className="text-lg">Envio</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground text-sm">
               Envie MP3/MP4 ou grave pelo navegador. Cada arquivo inicia um job
-              de processamento com status rastreável.
+              de processamento com status rastreavel.
             </p>
           </CardContent>
         </Card>
@@ -82,14 +81,15 @@ export default async function DashboardPage() {
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
               <Video className="size-3.5" />
-              Conversão de vídeo
+              Conversao HLS
             </CardDescription>
-            <CardTitle className="text-lg">MP4 → HLS</CardTitle>
+            <CardTitle className="text-lg">MP3/MP4 para HLS</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground text-sm">
-              Vídeos convertidos por FFmpeg no worker .NET. Você acompanha o
-              progresso ao vivo enquanto os segmentos HLS são gerados.
+              Audios e videos convertidos por FFmpeg no worker .NET. Voce
+              acompanha o progresso ao vivo enquanto os segmentos HLS sao
+              gerados.
             </p>
           </CardContent>
         </Card>
@@ -100,13 +100,13 @@ export default async function DashboardPage() {
               <Radio className="size-3.5" />
               Players
             </CardDescription>
-            <CardTitle className="text-lg">hls.js + áudio</CardTitle>
+            <CardTitle className="text-lg">hls.js</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground text-sm">
               Quando o status for{" "}
-              <code className="text-gold text-xs">ready</code>, assista vídeos
-              via HLS e ouça músicas no player integrado da biblioteca.
+              <code className="text-gold text-xs">ready</code>, reproduza audio
+              e video via HLS no player integrado da biblioteca.
             </p>
           </CardContent>
         </Card>

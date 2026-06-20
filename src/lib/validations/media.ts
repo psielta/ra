@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const MEDIA_AUDIO_MIME = "audio/mpeg" as const;
 export const MEDIA_VIDEO_MIME = "video/mp4" as const;
+export const MEDIA_AUDIO_WEBM_MIME = "audio/webm" as const;
+export const MEDIA_VIDEO_WEBM_MIME = "video/webm" as const;
 
 export const MEDIA_AUDIO_MAX_BYTES = 50 * 1024 * 1024;
 export const MEDIA_VIDEO_MAX_BYTES = 500 * 1024 * 1024;
@@ -46,6 +48,18 @@ const mediaMimeConfig = {
     maxBytes: MEDIA_VIDEO_MAX_BYTES,
     label: "MP4",
   },
+  [MEDIA_AUDIO_WEBM_MIME]: {
+    kind: "audio" as const,
+    extension: "webm",
+    maxBytes: MEDIA_AUDIO_MAX_BYTES,
+    label: "WebM de audio",
+  },
+  [MEDIA_VIDEO_WEBM_MIME]: {
+    kind: "video" as const,
+    extension: "webm",
+    maxBytes: MEDIA_VIDEO_MAX_BYTES,
+    label: "WebM de video",
+  },
 } as const;
 
 export function resolveMediaMime(mimeType: string) {
@@ -58,7 +72,7 @@ export function validateMediaFile(file: File) {
   if (!config) {
     return {
       ok: false as const,
-      message: "Envie um arquivo MP3 (audio/mpeg) ou MP4 (video/mp4).",
+      message: "Envie um arquivo MP3, MP4 ou uma gravacao WebM do navegador.",
     };
   }
 
@@ -88,7 +102,7 @@ export function validateMediaFile(file: File) {
 export function mediaObjectKey(
   userId: string,
   jobId: string,
-  extension: "mp3" | "mp4",
+  extension: "mp3" | "mp4" | "webm",
 ) {
   return `uploads/${userId}/${jobId}/source.${extension}`;
 }

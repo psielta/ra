@@ -1,4 +1,4 @@
-import { MediaType, TranscodeJobStatus } from "@prisma/client";
+﻿import { MediaType, TranscodeJobStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import { requireSession } from "@/lib/api-auth";
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     if (!metadata.success) {
       return NextResponse.json(
         {
-          message: "Dados inválidos",
+          message: "Dados invÃ¡lidos",
           errors: metadata.error.flatten().fieldErrors,
         },
         { status: 400 },
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
 
       if (!series) {
         return NextResponse.json(
-          { message: "Série não encontrada" },
+          { message: "SÃ©rie nÃ£o encontrada" },
           { status: 400 },
         );
       }
@@ -149,10 +149,7 @@ export async function POST(request: Request) {
       type: "JOB",
       category: "MEDIA",
       title: "Upload recebido",
-      message:
-        uploaded.mediaType === "video"
-          ? "Seu vídeo entrou na fila de conversão HLS."
-          : "Seu áudio entrou na fila de processamento.",
+      message: "Sua midia entrou na fila de conversao HLS.",
       metadata: { jobId: job.id, mediaAssetId: job.mediaAssetId },
     }).catch(() => undefined);
 

@@ -47,7 +47,7 @@ export function getMinioClient(): Minio.Client {
   return globalForMinio.minioClient;
 }
 
-function avatarsBucketPolicy(bucket: string) {
+function mediaBucketPolicy(bucket: string) {
   return JSON.stringify({
     Version: "2012-10-17",
     Statement: [
@@ -55,7 +55,10 @@ function avatarsBucketPolicy(bucket: string) {
         Effect: "Allow",
         Principal: { AWS: ["*"] },
         Action: ["s3:GetObject"],
-        Resource: [`arn:aws:s3:::${bucket}/avatars/*`],
+        Resource: [
+          `arn:aws:s3:::${bucket}/avatars/*`,
+          `arn:aws:s3:::${bucket}/outputs/*`,
+        ],
       },
     ],
   });
@@ -75,7 +78,7 @@ export async function ensureMinioBucket() {
     minioLogger.info({ event: "minio.bucket_created", bucket });
   }
 
-  await client.setBucketPolicy(bucket, avatarsBucketPolicy(bucket));
+  await client.setBucketPolicy(bucket, mediaBucketPolicy(bucket));
   globalForMinio.bucketReady = true;
 
   return bucket;

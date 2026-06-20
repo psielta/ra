@@ -25,6 +25,7 @@ describe("toQueueJobDto", () => {
         mimeType: "audio/mpeg",
         originalKey: "uploads/user-1/job-1/source.mp3",
         playbackUrl: null,
+        coverUrl: null,
         durationSec: null,
         createdAt: new Date("2026-06-20T12:00:00.000Z"),
         updatedAt: new Date("2026-06-20T12:00:00.000Z"),

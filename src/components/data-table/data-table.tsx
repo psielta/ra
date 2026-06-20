@@ -25,8 +25,8 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className="border-gold/15 overflow-hidden rounded-md border">
-      <table className="w-full text-sm">
+    <div className="border-gold/15 overflow-x-auto rounded-md border">
+      <table className="w-full min-w-[760px] text-sm">
         <thead className="bg-muted/50">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>

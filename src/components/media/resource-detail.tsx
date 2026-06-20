@@ -7,6 +7,10 @@ import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
 import { ResourceDeleteDialog } from "@/components/media/resource-delete-dialog";
 import { ResourcePlayer } from "@/components/media/resource-player";
 import { ResourceStatusBadge } from "@/components/media/resource-status-badge";
+import {
+  ResourceTile,
+  resourceToTileProps,
+} from "@/components/media/resource-tile";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,9 +19,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useResource, useUpdateResource } from "@/hooks/use-resources";
+import {
+  useResource,
+  useResources,
+  useUpdateResource,
+} from "@/hooks/use-resources";
 import { useSeriesList } from "@/hooks/use-series";
-import { useState } from "react";
+import { useJobEventSources } from "@/hooks/use-job-events";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 export function ResourceDetail({ id }: { id: string }) {
@@ -27,6 +36,27 @@ export function ResourceDetail({ id }: { id: string }) {
   const updateResource = useUpdateResource(id);
   const [seriesId, setSeriesId] = useState<string>("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const jobTargets = useMemo(
+    () =>
+      resource?.status === "processing" && resource.jobId
+        ? [{ jobId: resource.jobId, mediaAssetId: resource.id }]
+        : [],
+    [resource],
+  );
+  useJobEventSources(jobTargets);
+  const relatedFilters = useMemo(
+    () =>
+      resource?.series
+        ? { seriesId: resource.series.id, mediaType: "video" as const }
+        : undefined,
+    [resource?.series],
+  );
+  const { data: relatedVideos = [], isLoading: isLoadingRelatedVideos } =
+    useResources(relatedFilters, { enabled: Boolean(resource?.series?.id) });
+  const suggestedVideos = useMemo(
+    () => relatedVideos.filter((item) => item.id !== resource?.id),
+    [relatedVideos, resource?.id],
+  );
 
   if (isLoading) {
     return (
@@ -157,6 +187,33 @@ export function ResourceDetail({ id }: { id: string }) {
           </div>
         </CardContent>
       </Card>
+
+      {resource.series &&
+      (isLoadingRelatedVideos || suggestedVideos.length > 0) ? (
+        <section className="space-y-3">
+          <div>
+            <h3 className="font-display text-lg tracking-wide">
+              Videos da mesma serie
+            </h3>
+            <p className="text-muted-foreground text-sm">
+              Sugestoes relacionadas a {resource.series.title}.
+            </p>
+          </div>
+
+          {isLoadingRelatedVideos ? (
+            <div className="text-muted-foreground flex items-center gap-2 text-sm">
+              <Loader2 className="size-4 animate-spin" />
+              Carregando sugestoes...
+            </div>
+          ) : (
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {suggestedVideos.map((video) => (
+                <ResourceTile key={video.id} {...resourceToTileProps(video)} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
 
       <ResourceDeleteDialog
         resource={resource}

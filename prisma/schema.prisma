@@ -84,6 +84,7 @@ model MediaAsset {
   mimeType     String
   originalKey  String
   playbackUrl  String?
+  coverUrl     String?
   durationSec  Int?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

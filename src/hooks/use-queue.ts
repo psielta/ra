@@ -14,6 +14,5 @@ export function useQueueJobs() {
       const { data } = await api.get<QueueJobDto[]>("/queue");
       return data;
     },
-    refetchInterval: (query) => (query.state.data?.length ? 5000 : 15000),
   });
 }

@@ -14,7 +14,17 @@ services:
       NEXT_PUBLIC_APP_URL: http://localhost:14001
       PORT: "3000"
       NODE_ENV: production
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_PUBLIC_URL: http://localhost:14007
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      REDIS_URL: redis://redis:6379
+      WORKER_API_TOKEN: ${WORKER_API_TOKEN:-ra-dev-worker-token}
     volumes: []
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy

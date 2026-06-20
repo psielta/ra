@@ -71,6 +71,7 @@ export type ResourceDto = {
   status: ResourceStatus;
   progress: number;
   playbackUrl: string | null;
+  coverUrl: string | null;
   jobId: string | null;
   errorMessage: string | null;
   series: { id: string; title: string; slug: string } | null;

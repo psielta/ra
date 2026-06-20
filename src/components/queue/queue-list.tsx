@@ -1,16 +1,27 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { useMemo } from "react";
 
 import {
   ResourceTileGrid,
   queueJobToTileProps,
 } from "@/components/media/resource-tile";
 import { ResourceTileMenu } from "@/components/media/resource-tile-menu";
+import { useJobEventSources } from "@/hooks/use-job-events";
 import { useQueueJobs } from "@/hooks/use-queue";
 
 export function QueueList() {
   const { data: jobs = [], isLoading, isFetching } = useQueueJobs();
+  const jobTargets = useMemo(
+    () =>
+      jobs.map((job) => ({
+        jobId: job.jobId,
+        mediaAssetId: job.mediaAssetId,
+      })),
+    [jobs],
+  );
+  useJobEventSources(jobTargets);
 
   if (isLoading) {
     return (

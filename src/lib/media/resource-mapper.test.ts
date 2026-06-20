@@ -24,6 +24,7 @@ describe("toSeriesListDto", () => {
           mimeType: "video/mp4",
           originalKey: "uploads/user-1/job-1/source.mp4",
           playbackUrl: null,
+          coverUrl: null,
           durationSec: null,
           createdAt: new Date("2026-06-20T11:00:00.000Z"),
           updatedAt: new Date("2026-06-20T11:00:00.000Z"),
