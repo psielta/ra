@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Layers,
   ListOrdered,
+  ListMusic,
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
@@ -23,6 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { usePlaylistList } from "@/hooks/use-playlists";
 import { useSeriesList } from "@/hooks/use-series";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
@@ -44,6 +46,11 @@ const navItems = [
     icon: Layers,
   },
   {
+    title: "Playlists",
+    href: "/playlists",
+    icon: ListMusic,
+  },
+  {
     title: "Fila",
     href: "/queue",
     icon: ListOrdered,
@@ -58,6 +65,7 @@ interface AdminSidebarProps {
 function isNavItemActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === href;
   if (href === "/series") return pathname === href;
+  if (href === "/playlists") return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -109,6 +117,8 @@ export function AdminSidebar({ className, onNavigate }: AdminSidebarProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
   const { data: seriesList = [], isLoading: isSeriesLoading } = useSeriesList();
+  const { data: playlistList = [], isLoading: isPlaylistLoading } =
+    usePlaylistList();
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -157,6 +167,57 @@ export function AdminSidebar({ className, onNavigate }: AdminSidebarProps) {
                 onNavigate={onNavigate}
               />
             ))}
+          </div>
+
+          <Separator className="bg-sidebar-border my-3" />
+
+          {!sidebarCollapsed ? (
+            <p className="text-sidebar-foreground/50 mb-2 px-3 text-xs tracking-wider uppercase">
+              Minhas playlists
+            </p>
+          ) : null}
+
+          <div className="max-h-44 min-h-0 space-y-1 overflow-y-auto">
+            {isPlaylistLoading ? (
+              <div
+                className={cn(
+                  "text-sidebar-foreground/60 flex items-center gap-2 px-3 py-2 text-sm",
+                  sidebarCollapsed && "justify-center px-2",
+                )}
+              >
+                <Loader2 className="size-4 animate-spin" />
+                {!sidebarCollapsed ? "Carregando..." : null}
+              </div>
+            ) : playlistList.length === 0 ? (
+              !sidebarCollapsed ? (
+                <p className="text-sidebar-foreground/50 px-3 py-2 text-xs">
+                  Nenhuma playlist ainda.{" "}
+                  <Link
+                    href="/playlists"
+                    onClick={onNavigate}
+                    className="text-gold hover:underline"
+                  >
+                    Criar
+                  </Link>
+                </p>
+              ) : null
+            ) : (
+              playlistList.map((playlist) => {
+                const href = `/playlists/${playlist.id}`;
+
+                return (
+                  <SidebarNavLink
+                    key={playlist.id}
+                    href={href}
+                    title={playlist.title}
+                    icon={ListMusic}
+                    isActive={pathname === href}
+                    sidebarCollapsed={sidebarCollapsed}
+                    onNavigate={onNavigate}
+                  />
+                );
+              })
+            )}
           </div>
 
           <Separator className="bg-sidebar-border my-3" />

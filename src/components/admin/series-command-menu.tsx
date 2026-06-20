@@ -1,6 +1,6 @@
 "use client";
 
-import { Folder, Layers, Loader2, Search } from "lucide-react";
+import { Folder, Layers, ListMusic, Loader2, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   createContext,
@@ -20,6 +20,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
+import { usePlaylistList } from "@/hooks/use-playlists";
 import { useSeriesList } from "@/hooks/use-series";
 
 type SeriesCommandMenuContextValue = {
@@ -57,6 +58,8 @@ export function SeriesCommandMenuProvider({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const { data: seriesList = [], isLoading } = useSeriesList();
+  const { data: playlistList = [], isLoading: isPlaylistLoading } =
+    usePlaylistList();
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -102,6 +105,13 @@ export function SeriesCommandMenuProvider({
               <Layers />
               <span>Todas as séries</span>
             </CommandItem>
+            <CommandItem
+              value="todas as playlists listas reproducao"
+              onSelect={() => navigate("/playlists")}
+            >
+              <ListMusic />
+              <span>Todas as playlists</span>
+            </CommandItem>
           </CommandGroup>
 
           <CommandGroup heading="Coleções">
@@ -122,6 +132,30 @@ export function SeriesCommandMenuProvider({
                   <CommandShortcut>
                     {series.resourceCount}{" "}
                     {series.resourceCount === 1 ? "item" : "itens"}
+                  </CommandShortcut>
+                </CommandItem>
+              ))
+            )}
+          </CommandGroup>
+
+          <CommandGroup heading="Playlists">
+            {isPlaylistLoading ? (
+              <CommandItem disabled value="carregando playlists">
+                <Loader2 className="animate-spin" />
+                <span>Carregando playlists...</span>
+              </CommandItem>
+            ) : (
+              playlistList.map((playlist) => (
+                <CommandItem
+                  key={playlist.id}
+                  value={`${playlist.title} ${playlist.slug}`}
+                  onSelect={() => navigate(`/playlists/${playlist.id}`)}
+                >
+                  <ListMusic />
+                  <span className="truncate">{playlist.title}</span>
+                  <CommandShortcut>
+                    {playlist.itemCount}{" "}
+                    {playlist.itemCount === 1 ? "item" : "itens"}
                   </CommandShortcut>
                 </CommandItem>
               ))

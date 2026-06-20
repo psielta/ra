@@ -23,6 +23,7 @@ export const config = {
     "/admin/:path*",
     "/resources/:path*",
     "/series/:path*",
+    "/playlists/:path*",
     "/queue/:path*",
     "/sign-in",
     "/sign-up",

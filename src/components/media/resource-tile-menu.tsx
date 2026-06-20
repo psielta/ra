@@ -8,11 +8,13 @@ import {
   ResourceTile,
   type ResourceTileProps,
 } from "@/components/media/resource-tile";
+import { AddToPlaylistMenuItems } from "@/components/playlists/add-to-playlist-menu-items";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ResourceDto } from "@/lib/validations/series";
@@ -49,6 +51,8 @@ export function ResourceTileMenu({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
+            <AddToPlaylistMenuItems resourceIds={[resource.id]} />
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
               onClick={() => setDeleteOpen(true)}

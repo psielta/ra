@@ -23,6 +23,7 @@ export const authConfig = {
         pathname.startsWith("/admin") ||
         pathname.startsWith("/resources") ||
         pathname.startsWith("/series") ||
+        pathname.startsWith("/playlists") ||
         pathname.startsWith("/queue");
 
       if (isProtectedRoute) {
