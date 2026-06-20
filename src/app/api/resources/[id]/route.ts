@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
 import { createRequestLogger } from "@/lib/logger";
 import { deleteMediaResource } from "@/lib/media/delete-resource";
+import { recordMediaAccess } from "@/lib/media/record-access";
 import { toResourceDto } from "@/lib/media/resource-mapper";
 import { prisma } from "@/lib/prisma";
 import { updateResourceSchema } from "@/lib/validations/series";
@@ -41,6 +42,15 @@ export async function GET(_request: Request, context: RouteContext) {
       { status: 404 },
     );
   }
+
+  void recordMediaAccess(userId, id).catch((error) => {
+    resourceLogger.warn({
+      event: "resources.access_record_failed",
+      userId,
+      resourceId: id,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  });
 
   return NextResponse.json(toResourceDto(asset));
 }

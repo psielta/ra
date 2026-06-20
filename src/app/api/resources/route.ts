@@ -13,6 +13,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const seriesId = searchParams.get("seriesId");
   const mediaType = searchParams.get("mediaType");
+  const q = searchParams.get("q")?.trim();
 
   const assets = await prisma.mediaAsset.findMany({
     where: {
@@ -23,6 +24,14 @@ export async function GET(request: Request) {
         : mediaType === "video"
           ? { mediaType: MediaType.VIDEO }
           : {}),
+      ...(q
+        ? {
+            OR: [
+              { title: { contains: q, mode: "insensitive" } },
+              { description: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
     },
     orderBy: { createdAt: "desc" },
     include: {

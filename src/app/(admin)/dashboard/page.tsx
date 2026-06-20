@@ -4,6 +4,7 @@ import { Library, Radio, Upload, Video } from "lucide-react";
 import Link from "next/link";
 
 import { auth } from "@/auth";
+import { RecentFeed } from "@/components/dashboard/recent-feed";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -57,6 +58,8 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <RecentFeed />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="border-gold/15">

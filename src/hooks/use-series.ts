@@ -81,6 +81,7 @@ export function useDeleteSeries() {
       });
       void queryClient.invalidateQueries({ queryKey: ["resources"] });
       void queryClient.invalidateQueries({ queryKey: ["queue"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "recent"] });
     },
   });
 }

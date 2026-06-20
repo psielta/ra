@@ -13,6 +13,7 @@ export const resourcesQueryKey = ["resources"] as const;
 type ResourceFilters = {
   seriesId?: string;
   mediaType?: "audio" | "video";
+  q?: string;
 };
 
 export function useResources(filters?: ResourceFilters) {
@@ -22,6 +23,7 @@ export function useResources(filters?: ResourceFilters) {
       const params = new URLSearchParams();
       if (filters?.seriesId) params.set("seriesId", filters.seriesId);
       if (filters?.mediaType) params.set("mediaType", filters.mediaType);
+      if (filters?.q) params.set("q", filters.q);
 
       const query = params.toString();
       const { data } = await api.get<ResourceDto[]>(
@@ -76,6 +78,7 @@ export function useDeleteResource() {
       });
       void queryClient.invalidateQueries({ queryKey: ["series"] });
       void queryClient.invalidateQueries({ queryKey: ["queue"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "recent"] });
     },
   });
 }
