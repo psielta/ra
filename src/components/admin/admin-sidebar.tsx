@@ -1,16 +1,18 @@
 "use client";
 
 import {
+  Folder,
   FolderOpen,
   LayoutDashboard,
   Layers,
   ListOrdered,
+  Loader2,
   PanelLeftClose,
   PanelLeftOpen,
-  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ComponentType } from "react";
 
 import { RaLogo } from "@/components/brand/ra-logo";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSeriesList } from "@/hooks/use-series";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui-store";
 
@@ -45,11 +48,6 @@ const navItems = [
     href: "/queue",
     icon: ListOrdered,
   },
-  {
-    title: "Enviar mídia",
-    href: "/dashboard/upload",
-    icon: Upload,
-  },
 ];
 
 interface AdminSidebarProps {
@@ -57,9 +55,60 @@ interface AdminSidebarProps {
   onNavigate?: () => void;
 }
 
+function isNavItemActive(pathname: string, href: string) {
+  if (href === "/dashboard") return pathname === href;
+  if (href === "/series") return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function SidebarNavLink({
+  href,
+  title,
+  icon: Icon,
+  isActive,
+  sidebarCollapsed,
+  onNavigate,
+}: {
+  href: string;
+  title: string;
+  icon: ComponentType<{ className?: string }>;
+  isActive: boolean;
+  sidebarCollapsed: boolean;
+  onNavigate?: () => void;
+}) {
+  const link = (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className={cn(
+        "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+        isActive
+          ? "bg-sidebar-accent text-sidebar-primary"
+          : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+        sidebarCollapsed && "justify-center px-2",
+      )}
+    >
+      <Icon className={cn("size-4 shrink-0", isActive && "text-gold")} />
+      {!sidebarCollapsed && <span className="truncate">{title}</span>}
+    </Link>
+  );
+
+  if (sidebarCollapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side="right">{title}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return link;
+}
+
 export function AdminSidebar({ className, onNavigate }: AdminSidebarProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
+  const { data: seriesList = [], isLoading: isSeriesLoading } = useSeriesList();
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -95,43 +144,71 @@ export function AdminSidebar({ className, onNavigate }: AdminSidebarProps) {
           </Button>
         </div>
 
-        <nav className="flex-1 space-y-1 p-3">
-          {navItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(item.href));
-
-            const link = (
-              <Link
+        <nav className="flex min-h-0 flex-1 flex-col p-3">
+          <div className="space-y-1">
+            {navItems.map((item) => (
+              <SidebarNavLink
                 key={item.href}
                 href={item.href}
-                onClick={onNavigate}
+                title={item.title}
+                icon={item.icon}
+                isActive={isNavItemActive(pathname, item.href)}
+                sidebarCollapsed={sidebarCollapsed}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+
+          <Separator className="bg-sidebar-border my-3" />
+
+          {!sidebarCollapsed ? (
+            <p className="text-sidebar-foreground/50 mb-2 px-3 text-xs tracking-wider uppercase">
+              Minhas séries
+            </p>
+          ) : null}
+
+          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+            {isSeriesLoading ? (
+              <div
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-primary"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                  "text-sidebar-foreground/60 flex items-center gap-2 px-3 py-2 text-sm",
                   sidebarCollapsed && "justify-center px-2",
                 )}
               >
-                <item.icon
-                  className={cn("size-4 shrink-0", isActive && "text-gold")}
-                />
-                {!sidebarCollapsed && <span>{item.title}</span>}
-              </Link>
-            );
+                <Loader2 className="size-4 animate-spin" />
+                {!sidebarCollapsed ? "Carregando..." : null}
+              </div>
+            ) : seriesList.length === 0 ? (
+              !sidebarCollapsed ? (
+                <p className="text-sidebar-foreground/50 px-3 py-2 text-xs">
+                  Nenhuma série ainda.{" "}
+                  <Link
+                    href="/series"
+                    onClick={onNavigate}
+                    className="text-gold hover:underline"
+                  >
+                    Criar
+                  </Link>
+                </p>
+              ) : null
+            ) : (
+              seriesList.map((series) => {
+                const href = `/series/${series.id}`;
 
-            if (sidebarCollapsed) {
-              return (
-                <Tooltip key={item.href}>
-                  <TooltipTrigger asChild>{link}</TooltipTrigger>
-                  <TooltipContent side="right">{item.title}</TooltipContent>
-                </Tooltip>
-              );
-            }
-
-            return link;
-          })}
+                return (
+                  <SidebarNavLink
+                    key={series.id}
+                    href={href}
+                    title={series.title}
+                    icon={Folder}
+                    isActive={pathname === href}
+                    sidebarCollapsed={sidebarCollapsed}
+                    onNavigate={onNavigate}
+                  />
+                );
+              })
+            )}
+          </div>
         </nav>
 
         <div className="p-3">
