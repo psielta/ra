@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { createRequestLogger } from "@/lib/logger";
+import { publishNotificationToAdmins } from "@/lib/realtime/notifications";
 import { signUpSchema } from "@/lib/validations/auth";
 
 const registerLogger = createRequestLogger({ module: "register" });
@@ -70,6 +71,19 @@ export async function POST(request: Request) {
       event: "register.success",
       userId: user.id,
       email: normalizedEmail,
+    });
+
+    void publishNotificationToAdmins({
+      type: "INFO",
+      category: "ACCOUNT",
+      title: "Novo usuário registrado",
+      message: `${name} (${normalizedEmail}) criou uma conta no Ra.`,
+      metadata: { userId: user.id, email: normalizedEmail },
+    }).catch((error) => {
+      log.warn({
+        event: "register.admin_notification_failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
     });
 
     return NextResponse.json(

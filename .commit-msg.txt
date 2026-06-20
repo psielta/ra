@@ -1,0 +1,7 @@
+feat(notifications): add realtime SSE notification system
+
+- Persist notifications in PostgreSQL with read/unread state
+- Deliver events via Redis pub/sub with in-memory fallback for dev
+- Expose SSE stream, list, read and publish API routes
+- Add notification bell, RealtimeProvider and settings test card
+- Notify admins on new user registration

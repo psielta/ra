@@ -12,6 +12,20 @@ enum Role {
   ADMIN
 }
 
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  JOB
+}
+
+enum NotificationCategory {
+  SYSTEM
+  MEDIA
+  ACCOUNT
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -23,8 +37,26 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts Account[]
-  sessions Session[]
+  accounts      Account[]
+  sessions      Session[]
+  notifications Notification[]
+}
+
+model Notification {
+  id        String               @id @default(cuid())
+  userId    String
+  type      NotificationType     @default(INFO)
+  category  NotificationCategory @default(SYSTEM)
+  title     String
+  message   String               @db.Text
+  readAt    DateTime?
+  metadata  Json?
+  createdAt DateTime             @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
 }
 
 model Account {

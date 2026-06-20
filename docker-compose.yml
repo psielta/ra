@@ -20,6 +20,21 @@ services:
       retries: 10
       start_period: 10s
 
+  redis:
+    image: redis:7-alpine
+    container_name: ra-redis
+    restart: unless-stopped
+    ports:
+      - "14006:6379"
+    volumes:
+      - ra_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   app:
     build:
       context: .
@@ -47,5 +62,6 @@ services:
 
 volumes:
   ra_postgres_data:
+  ra_redis_data:
   ra_node_modules:
   ra_next_cache:

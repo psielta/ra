@@ -4,6 +4,7 @@ import { LogOut, User } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 
 import { MobileNav } from "@/components/admin/mobile-nav";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,44 +48,48 @@ export function AdminHeader({ title = "Dashboard" }: AdminHeaderProps) {
         </div>
       </div>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="relative size-9 cursor-pointer rounded-full"
-            aria-label="Menu do usuário"
-          >
-            <Avatar className="ring-gold/30 size-9 ring-2">
-              <AvatarImage
-                src={user?.image ?? undefined}
-                alt={user?.name ?? ""}
-              />
-              <AvatarFallback className="bg-lapis text-papyrus text-xs">
-                {getInitials(user?.name)}
-              </AvatarFallback>
-            </Avatar>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <div className="px-2 py-1.5">
-            <p className="text-sm font-medium">{user?.name ?? "Usuário"}</p>
-            <p className="text-muted-foreground text-xs">{user?.email}</p>
-          </div>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem disabled>
-            <User />
-            Perfil
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="destructive"
-            onClick={() => signOut({ callbackUrl: "/sign-in" })}
-          >
-            <LogOut />
-            Sair
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex items-center gap-1">
+        <NotificationBell />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="relative size-9 cursor-pointer rounded-full"
+              aria-label="Menu do usuário"
+            >
+              <Avatar className="ring-gold/30 size-9 ring-2">
+                <AvatarImage
+                  src={user?.image ?? undefined}
+                  alt={user?.name ?? ""}
+                />
+                <AvatarFallback className="bg-lapis text-papyrus text-xs">
+                  {getInitials(user?.name)}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <div className="px-2 py-1.5">
+              <p className="text-sm font-medium">{user?.name ?? "Usuário"}</p>
+              <p className="text-muted-foreground text-xs">{user?.email}</p>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled>
+              <User />
+              Perfil
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => signOut({ callbackUrl: "/sign-in" })}
+            >
+              <LogOut />
+              Sair
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
   );
 }

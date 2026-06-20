@@ -27,6 +27,7 @@
     "docker:up:prod": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d",
     "docker:logs": "docker compose logs -f app",
     "docker:db": "docker compose up -d postgres",
+    "docker:redis": "docker compose up -d redis",
     "docker:migrate": "docker compose exec app npx prisma migrate deploy",
     "postinstall": "prisma generate",
     "prepare": "husky"
@@ -50,6 +51,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "ioredis": "^5.11.1",
     "lexical": "^0.31.2",
     "lucide-react": "^0.513.0",
     "next": "^15.3.3",
