@@ -515,14 +515,16 @@ Entregue e funcional:
 
 Pipeline de mídia concluído:
 
-- [x] Prisma: `MediaAsset`, `TranscodeJob`, `Series` (processing|ready|error)
+- [x] Prisma: `MediaAsset`, `TranscodeJob`, `Series`, `Playlist`, `PlaylistItem` (processing|ready|error)
 - [x] Upload API → MinIO/S3 → publicar job RabbitMQ
 - [x] Docker: RabbitMQ (14004), Redis (14006), MinIO (14007), Nginx (14009), Mailhog e worker
 - [x] Worker .NET 10 `WorkerServiceRaMedia` (FFmpeg, Serilog, Redis progress)
 - [x] SSE bridge Redis → frontend (progresso live)
 - [x] Players HLS com hls.js para vídeo e áudio
 - [x] Monitor visual dos segmentos HLS recebidos no player
-- [x] Biblioteca de recursos, séries, fila de processamento e gravação MediaRecorder
+- [x] Biblioteca de recursos, séries, playlists, fila de processamento e gravação MediaRecorder
+- [x] Playlists pessoais com reproducao sequencial no mini-player persistente
+- [x] Ações em lote em `/resources`: organizar em serie, adicionar a playlist e excluir selecionados
 - [x] Cover automático de vídeo gerado pelo worker
 - [x] Upload em drawer global para não sair da rota atual
 - [x] Edição de nome, descrição e série por recurso

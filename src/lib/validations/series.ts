@@ -54,11 +54,21 @@ export const bulkUpdateResourcesSchema = z.object({
   seriesId: z.string().cuid().nullable(),
 });
 
+export const bulkDeleteResourcesSchema = z.object({
+  ids: z
+    .array(z.string().cuid())
+    .min(1, "Selecione ao menos um recurso")
+    .max(100, "Exclua no maximo 100 recursos por vez"),
+});
+
 export type CreateSeriesInput = z.infer<typeof createSeriesSchema>;
 export type UpdateSeriesInput = z.infer<typeof updateSeriesSchema>;
 export type UpdateResourceInput = z.infer<typeof updateResourceSchema>;
 export type BulkUpdateResourcesInput = z.infer<
   typeof bulkUpdateResourcesSchema
+>;
+export type BulkDeleteResourcesInput = z.infer<
+  typeof bulkDeleteResourcesSchema
 >;
 
 export const SERIES_PREVIEW_LIMIT = 12;

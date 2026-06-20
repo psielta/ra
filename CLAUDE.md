@@ -4,7 +4,7 @@ Documentação de contexto para agentes Claude (Claude Code, Cursor, etc.) traba
 
 ## O que é este projeto
 
-**Ra** é um portfolio pessoal de **música (MP3 → HLS)** e **vídeo (MP4 → HLS)**. Pipeline atual: upload via Next.js → Storage (MinIO/S3) → fila RabbitMQ → worker .NET com FFmpeg → HLS no storage → Nginx → playback com hls.js. Progresso do job em tempo real via Redis pub/sub (padrão do `WorkerServiceBuscaPrecoIA`).
+**Ra** é um portfolio pessoal de **música (MP3 → HLS)** e **vídeo (MP4 → HLS)**. Pipeline atual: upload via Next.js → Storage (MinIO/S3) → fila RabbitMQ → worker .NET com FFmpeg → HLS no storage → Nginx → playback com hls.js. A biblioteca tem recursos, séries, playlists pessoais com reprodução sequencial, ações em lote e mini-player persistente. Progresso do job em tempo real via Redis pub/sub (padrão do `WorkerServiceBuscaPrecoIA`).
 
 Idioma da UI e copy: **pt-BR**.
 
@@ -49,7 +49,7 @@ Referência de worker: `D:\globalleitorpdf\globalleitorpdf\WorkerServiceBuscaPre
 - .NET 10, RabbitMQ.Client 6.8.1, StackExchange.Redis 2.8.16, Serilog 4.3.1
 - `IRedisService.PublishProgressAsync` → canal `job.progress`
 
-**Regras:** FFmpeg nunca no Next.js. Áudio e vídeo sempre HLS no playback. PostgreSQL = status; Redis = progresso efêmero.
+**Regras:** FFmpeg nunca no Next.js. Áudio e vídeo sempre HLS no playback. PostgreSQL = status/listas; Redis = progresso efêmero. Playlists e séries devem tocar pelo mini-player persistente quando o usuário iniciar playback fora de `/resources/[id]`.
 
 ## Portas — REGRA OBRIGATÓRIA
 

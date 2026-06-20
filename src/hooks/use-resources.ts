@@ -6,6 +6,7 @@ import { api } from "@/lib/axios";
 import type { MediaUploadResponse } from "@/lib/validations/media";
 import type {
   BulkUpdateResourcesInput,
+  BulkDeleteResourcesInput,
   ResourceDto,
   UpdateResourceInput,
 } from "@/lib/validations/series";
@@ -102,6 +103,28 @@ export function useBulkUpdateResources() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: resourcesQueryKey });
       void queryClient.invalidateQueries({ queryKey: ["series"] });
+      void queryClient.invalidateQueries({ queryKey: ["queue"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "recent"] });
+    },
+  });
+}
+
+export function useBulkDeleteResources() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: BulkDeleteResourcesInput) => {
+      const { data } = await api.delete<{
+        count: number;
+        deletedStorageKeys: number;
+        cancelledJobCount: number;
+      }>("/resources", { data: input });
+      return data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: resourcesQueryKey });
+      void queryClient.invalidateQueries({ queryKey: ["series"] });
+      void queryClient.invalidateQueries({ queryKey: ["playlists"] });
       void queryClient.invalidateQueries({ queryKey: ["queue"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "recent"] });
     },

@@ -27,6 +27,13 @@ type E2EResource = {
   series: { id: string; title: string } | null;
 };
 
+type E2EPlaylist = {
+  id: string;
+  title: string;
+  itemCount: number;
+  resources: E2EResource[];
+};
+
 function firstExistingPath(candidates: string[]) {
   return candidates.find((candidate) => existsSync(candidate));
 }
@@ -354,6 +361,59 @@ async function organizeInSeries(page: Page, expectedCount: number) {
   return series;
 }
 
+async function createPlaylistWithBulkAdd(page: Page, resources: E2EResource[]) {
+  const playlistResponse = await page.request.post("/api/playlists", {
+    data: { title: "E2E favoritas" },
+  });
+  expect(
+    playlistResponse.ok(),
+    `playlist API status ${playlistResponse.status()}: ${await playlistResponse.text()}`,
+  ).toBeTruthy();
+
+  const playlist = (await playlistResponse.json()) as E2EPlaylist;
+
+  await page.goto("/resources");
+  await page.getByLabel("Selecionar todos os recursos").check();
+  await expect(
+    page.getByText(`${resources.length} selecionado(s)`),
+  ).toBeVisible();
+  await page
+    .getByLabel("Playlist para adicionar os selecionados")
+    .selectOption(playlist.id);
+  await page.getByRole("button", { name: "Adicionar" }).click();
+  await expect(page.getByText("Playlist atualizada")).toBeVisible({
+    timeout: 15_000,
+  });
+
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.get(
+          `/api/playlists/${playlist.id}`,
+        );
+        expect(
+          response.ok(),
+          `playlist detail API status ${response.status()}: ${await response.text()}`,
+        ).toBeTruthy();
+        const detail = (await response.json()) as E2EPlaylist;
+
+        return detail.itemCount;
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(resources.length);
+
+  const detailResponse = await page.request.get(
+    `/api/playlists/${playlist.id}`,
+  );
+  expect(
+    detailResponse.ok(),
+    `playlist detail API status ${detailResponse.status()}: ${await detailResponse.text()}`,
+  ).toBeTruthy();
+
+  return (await detailResponse.json()) as E2EPlaylist;
+}
+
 async function assertPersistentMiniPlayer(
   page: Page,
   resource: E2EResource,
@@ -421,6 +481,59 @@ async function assertSeriesPlayback(
   });
 }
 
+async function assertPlaylistPlayback(page: Page, playlist: E2EPlaylist) {
+  const first = playlist.resources[0];
+  const second = playlist.resources[1];
+  expect(first).toBeTruthy();
+  expect(second).toBeTruthy();
+
+  await page.goto("/playlists");
+  await page
+    .getByRole("button", { name: "Reproduzir playlist" })
+    .first()
+    .click();
+  await expect(
+    miniPlayer(page).filter({ hasText: playlist.title }),
+  ).toBeVisible({ timeout: 15_000 });
+
+  await page.goto(`/playlists/${playlist.id}`);
+  await page.getByRole("button", { name: "Reproduzir playlist" }).click();
+  await expect(
+    miniPlayer(page).filter({ hasText: first.title ?? "Sem titulo" }),
+  ).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(miniPlayer(page).filter({ hasText: "1/2" })).toBeVisible();
+
+  await miniPlayer(page).locator("audio, video").dispatchEvent("ended");
+  await expect(
+    miniPlayer(page).filter({ hasText: second.title ?? "Sem titulo" }),
+  ).toBeVisible({
+    timeout: 15_000,
+  });
+}
+
+async function assertBulkDelete(page: Page, expectedCount: number) {
+  await page.goto("/resources");
+  await page.getByLabel("Selecionar todos os recursos").check();
+  await expect(page.getByText(`${expectedCount} selecionado(s)`)).toBeVisible();
+
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain(`${expectedCount} recurso(s)`);
+    await dialog.accept();
+  });
+  await page.getByRole("button", { name: "Excluir selecionados" }).click();
+  await expect(page.getByText("Recursos excluidos")).toBeVisible({
+    timeout: 15_000,
+  });
+
+  await expect
+    .poll(async () => (await fetchResources(page)).length, {
+      timeout: 15_000,
+    })
+    .toBe(0);
+}
+
 test("processa MP3 e MP4 ate playback com lote e mini-player", async ({
   page,
 }) => {
@@ -444,6 +557,10 @@ test("processa MP3 e MP4 ate playback com lote e mini-player", async ({
   await renameResource(page, audio as E2EResource, "E2E audio MP3 renomeado");
   await renameResource(page, video as E2EResource, "E2E video MP4 renomeado");
   const series = await organizeInSeries(page, 2);
+  const playlist = await createPlaylistWithBulkAdd(
+    page,
+    await fetchResources(page),
+  );
   await assertPlayFromResources(page, "E2E audio MP3 renomeado");
   await assertPersistentMiniPlayer(
     page,
@@ -456,4 +573,6 @@ test("processa MP3 e MP4 ate playback com lote e mini-player", async ({
     "E2E audio MP3 renomeado",
     "E2E video MP4 renomeado",
   );
+  await assertPlaylistPlayback(page, playlist);
+  await assertBulkDelete(page, 2);
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  bulkDeleteResourcesSchema,
   bulkUpdateResourcesSchema,
   createSeriesSchema,
   slugifySeriesTitle,
@@ -33,6 +34,20 @@ describe("bulkUpdateResourcesSchema", () => {
 
     expect(assignResult.success).toBe(true);
     expect(removeResult.success).toBe(true);
+    expect(emptyResult.success).toBe(false);
+  });
+});
+
+describe("bulkDeleteResourcesSchema", () => {
+  it("valida exclusao em lote de recursos", () => {
+    const result = bulkDeleteResourcesSchema.safeParse({
+      ids: ["cmqmded510001v8h4qpnlvby3", "cmqmf16pz0003v83o50b8gnw2"],
+    });
+    const emptyResult = bulkDeleteResourcesSchema.safeParse({
+      ids: [],
+    });
+
+    expect(result.success).toBe(true);
     expect(emptyResult.success).toBe(false);
   });
 });

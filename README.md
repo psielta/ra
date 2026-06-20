@@ -286,12 +286,14 @@ A base web e o **pipeline de midia end-to-end** estao implementados: upload/grav
 
 ### Pipeline de mídia — checklist 100% concluido
 
-- [x] Modelos Prisma: `MediaAsset`, `TranscodeJob`, `Series` com status `processing|ready|error`
+- [x] Modelos Prisma: `MediaAsset`, `TranscodeJob`, `Series`, `Playlist` e `PlaylistItem`
 - [x] API de upload (multipart → MinIO/S3)
 - [x] Publicação de job no RabbitMQ após upload
 - [x] Docker Compose: RabbitMQ, Redis, MinIO (+ Mailhog para e-mail dev)
-- [x] UI de mídia: `/resources`, `/resources/[id]`, `/series`, `/series/[id]`, `/queue`, `/dashboard/upload`
+- [x] UI de mídia: `/resources`, `/resources/[id]`, `/series`, `/series/[id]`, `/playlists`, `/playlists/[id]`, `/queue`, `/dashboard/upload`
 - [x] Séries como coleções (preview de itens na listagem + edição em drawer)
+- [x] Playlists pessoais com reproducao sequencial no mini-player persistente
+- [x] Ações em lote na biblioteca: organizar em serie, adicionar a playlist e excluir selecionados
 - [x] Fila de processamento (`/queue`) com progresso live via Redis/SSE
 - [x] Player audio HLS via hls.js quando status `ready`
 - [x] Docker Compose: Nginx (HLS/covers)
@@ -307,12 +309,12 @@ A base web e o **pipeline de midia end-to-end** estao implementados: upload/grav
 ## Fluxo de Produto
 
 1. Usuário cria conta e entra no dashboard.
-2. Cria séries (coleções), envia MP3/MP4 em `/dashboard/upload` e classifica por série.
+2. Cria séries (coleções) e playlists, envia MP3/MP4 em `/dashboard/upload` e classifica por série.
 3. A API valida, persiste metadados (`processing`), salva o original no MinIO e enfileira o job no RabbitMQ.
-4. `/resources`, `/series` e `/queue` exibem status e progresso em tempo real via SSE/Redis.
+4. `/resources`, `/series`, `/playlists` e `/queue` exibem status e progresso em tempo real via SSE/Redis.
 5. O worker .NET consome a fila, roda FFmpeg, publica progresso, grava HLS para audio/video e gera cover automatico para video.
 6. Ao concluir, o banco passa para `ready`; Nginx/storage expõe as URLs de playback.
-7. O usuário assiste/ouve no player integrado. O portfolio é privado por padrão; vitrine pública é evolução futura.
+7. O usuário assiste/ouve no player integrado ou no mini-player persistente, incluindo sequencia de series/playlists. O portfolio é privado por padrão; vitrine pública é evolução futura.
 
 ---
 
@@ -323,10 +325,11 @@ D:\ra/
   src/
     app/(admin)/resources/      Biblioteca de mídia
     app/(admin)/series/         Coleções (séries)
+    app/(admin)/playlists/      Playlists pessoais
     app/(admin)/queue/          Fila de processamento
     app/api/media/upload/       Upload → MinIO + RabbitMQ
-    app/api/series|resources|queue/
-  prisma/                       Schema e migrations (MediaAsset, TranscodeJob, Series)
+    app/api/series|playlists|resources|queue/
+  prisma/                       Schema e migrations (MediaAsset, TranscodeJob, Series, Playlist)
   docker/                       Entrypoints
   worker/                       WorkerServiceRaMedia (.NET 10)
   nginx/                        conf para HLS/covers

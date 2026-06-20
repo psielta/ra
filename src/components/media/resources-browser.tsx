@@ -6,10 +6,12 @@ import { ptBR } from "date-fns/locale";
 import {
   ExternalLink,
   FolderInput,
+  ListPlus,
   Loader2,
   Music,
   Play,
   Search,
+  Trash2,
   Video,
 } from "lucide-react";
 import Link from "next/link";
@@ -28,7 +30,12 @@ import { ResourceStatusBadge } from "@/components/media/resource-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useJobEventSources } from "@/hooks/use-job-events";
-import { useBulkUpdateResources, useResources } from "@/hooks/use-resources";
+import { useAddPlaylistItems, usePlaylistList } from "@/hooks/use-playlists";
+import {
+  useBulkDeleteResources,
+  useBulkUpdateResources,
+  useResources,
+} from "@/hooks/use-resources";
 import { useSeriesList } from "@/hooks/use-series";
 import type { ResourceDto } from "@/lib/validations/series";
 import { useUiStore } from "@/stores/ui-store";
@@ -74,7 +81,10 @@ export function ResourcesBrowser() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [bulkSeriesId, setBulkSeriesId] = useState("");
+  const [bulkPlaylistId, setBulkPlaylistId] = useState("");
   const bulkUpdateResources = useBulkUpdateResources();
+  const bulkDeleteResources = useBulkDeleteResources();
+  const addPlaylistItems = useAddPlaylistItems();
   const startPersistentPlayback = useUiStore(
     (state) => state.startPersistentPlayback,
   );
@@ -100,6 +110,7 @@ export function ResourcesBrowser() {
 
   const { data: resources = [], isLoading } = useResources(filters);
   const { data: seriesList = [] } = useSeriesList();
+  const { data: playlistList = [] } = usePlaylistList();
   const selectedResources = useMemo(
     () => resources.filter((resource) => rowSelection[resource.id]),
     [resources, rowSelection],
@@ -311,6 +322,60 @@ export function ResourcesBrowser() {
     }
   }
 
+  async function handleBulkPlaylistAdd() {
+    if (!selectedIds.length || !bulkPlaylistId) return;
+
+    const playlist = playlistList.find((item) => item.id === bulkPlaylistId);
+
+    try {
+      const result = await addPlaylistItems.mutateAsync({
+        playlistId: bulkPlaylistId,
+        input: { resourceIds: selectedIds },
+      });
+
+      toast.success("Playlist atualizada", {
+        description: playlist
+          ? `${result.addedCount} item(ns) adicionados a "${playlist.title}".`
+          : `${result.addedCount} item(ns) adicionados.`,
+      });
+      setRowSelection({});
+      setBulkPlaylistId("");
+    } catch (error) {
+      toast.error("Nao foi possivel adicionar a playlist", {
+        description:
+          error instanceof Error ? error.message : "Tente novamente.",
+      });
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (!selectedIds.length) return;
+
+    const confirmed = window.confirm(
+      `Excluir ${selectedIds.length} recurso(s) selecionado(s)? Os arquivos tambem serao removidos do storage.`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const result = await bulkDeleteResources.mutateAsync({
+        ids: selectedIds,
+      });
+
+      toast.success("Recursos excluidos", {
+        description: `${result.count} item(ns) removidos.`,
+      });
+      setRowSelection({});
+      setBulkSeriesId("");
+      setBulkPlaylistId("");
+    } catch (error) {
+      toast.error("Nao foi possivel excluir os recursos", {
+        description:
+          error instanceof Error ? error.message : "Tente novamente.",
+      });
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
@@ -403,6 +468,37 @@ export function ResourcesBrowser() {
                   )}
                   Aplicar
                 </Button>
+                <select
+                  value={bulkPlaylistId}
+                  onChange={(event) => setBulkPlaylistId(event.target.value)}
+                  className="border-input bg-background h-9 min-w-56 rounded-md border px-3 text-sm"
+                  aria-label="Playlist para adicionar os selecionados"
+                >
+                  <option value="">Escolher playlist</option>
+                  {playlistList.map((playlist) => (
+                    <option key={playlist.id} value={playlist.id}>
+                      {playlist.title}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={
+                    !bulkPlaylistId ||
+                    addPlaylistItems.isPending ||
+                    selectedIds.length === 0
+                  }
+                  onClick={() => void handleBulkPlaylistAdd()}
+                >
+                  {addPlaylistItems.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <ListPlus className="size-4" />
+                  )}
+                  Adicionar
+                </Button>
                 <Button
                   type="button"
                   size="sm"
@@ -410,9 +506,26 @@ export function ResourcesBrowser() {
                   onClick={() => {
                     setRowSelection({});
                     setBulkSeriesId("");
+                    setBulkPlaylistId("");
                   }}
                 >
                   Limpar selecao
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  disabled={
+                    bulkDeleteResources.isPending || selectedIds.length === 0
+                  }
+                  onClick={() => void handleBulkDelete()}
+                >
+                  {bulkDeleteResources.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="size-4" />
+                  )}
+                  Excluir selecionados
                 </Button>
               </div>
             </div>
