@@ -2,7 +2,11 @@
 
 import { Loader2 } from "lucide-react";
 
-import { QueueItemCard } from "@/components/queue/queue-item-card";
+import {
+  ResourceTileGrid,
+  queueJobToTileProps,
+} from "@/components/media/resource-tile";
+import { ResourceTileMenu } from "@/components/media/resource-tile-menu";
 import { useQueueJobs } from "@/hooks/use-queue";
 
 export function QueueList() {
@@ -34,11 +38,19 @@ export function QueueList() {
         {jobs.length} {jobs.length === 1 ? "item" : "itens"} na fila
         {isFetching ? " · atualizando..." : null}
       </p>
-      <div className="grid gap-4 md:grid-cols-2">
+      <ResourceTileGrid>
         {jobs.map((job) => (
-          <QueueItemCard key={job.jobId} job={job} />
+          <ResourceTileMenu
+            key={job.jobId}
+            tile={queueJobToTileProps(job)}
+            resource={{
+              id: job.mediaAssetId,
+              title: job.title,
+              status: "processing",
+            }}
+          />
         ))}
-      </div>
+      </ResourceTileGrid>
     </div>
   );
 }

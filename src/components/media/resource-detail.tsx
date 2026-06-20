@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
 
+import { ResourceDeleteDialog } from "@/components/media/resource-delete-dialog";
 import { ResourcePlayer } from "@/components/media/resource-player";
 import { ResourceStatusBadge } from "@/components/media/resource-status-badge";
 import { Button } from "@/components/ui/button";
@@ -19,10 +21,12 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export function ResourceDetail({ id }: { id: string }) {
+  const router = useRouter();
   const { data: resource, isLoading, isError } = useResource(id);
   const { data: seriesList = [] } = useSeriesList();
   const updateResource = useUpdateResource(id);
   const [seriesId, setSeriesId] = useState<string>("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -79,10 +83,21 @@ export function ResourceDetail({ id }: { id: string }) {
             ) : null}
           </p>
         </div>
-        <ResourceStatusBadge
-          status={resource.status}
-          progress={resource.progress}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <ResourceStatusBadge
+            status={resource.status}
+            progress={resource.progress}
+          />
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="size-4" />
+            Excluir
+          </Button>
+        </div>
       </div>
 
       <ResourcePlayer resource={resource} />
@@ -142,6 +157,20 @@ export function ResourceDetail({ id }: { id: string }) {
           </div>
         </CardContent>
       </Card>
+
+      <ResourceDeleteDialog
+        resource={resource}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onDeleted={() => {
+          if (resource.series) {
+            router.push(`/series/${resource.series.id}`);
+            return;
+          }
+
+          router.push("/resources");
+        }}
+      />
     </div>
   );
 }

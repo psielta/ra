@@ -21,7 +21,8 @@ export function SeriesList() {
     return (
       <div className="border-gold/20 bg-muted/20 rounded-lg border border-dashed p-10 text-center">
         <p className="text-muted-foreground text-sm">
-          Nenhuma série criada ainda. Use o formulário ao lado para começar.
+          Nenhuma série criada ainda. Clique em &quot;Nova série&quot; para
+          começar.
         </p>
       </div>
     );

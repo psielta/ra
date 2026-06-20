@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireSession } from "@/lib/api-auth";
 import { createRequestLogger } from "@/lib/logger";
+import { deleteMediaResource } from "@/lib/media/delete-resource";
 import { toResourceDto } from "@/lib/media/resource-mapper";
 import { prisma } from "@/lib/prisma";
 import { updateResourceSchema } from "@/lib/validations/series";
@@ -122,6 +123,54 @@ export async function PATCH(request: Request, context: RouteContext) {
     log.error({
       event: "resources.update_error",
       userId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+
+    return NextResponse.json(
+      { message: "Erro interno do servidor" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const requestId = crypto.randomUUID();
+  const log = resourceLogger.child({ requestId });
+  const authResult = await requireSession();
+  if (authResult.response) return authResult.response;
+
+  const userId = authResult.session.user.id;
+  const { id } = await context.params;
+
+  try {
+    const result = await deleteMediaResource(userId, id);
+
+    if (!result) {
+      return NextResponse.json(
+        { message: "Recurso não encontrado" },
+        { status: 404 },
+      );
+    }
+
+    log.info({
+      event: "resources.deleted",
+      userId,
+      resourceId: id,
+      seriesId: result.seriesId,
+      deletedStorageKeys: result.deletedStorageKeys,
+      cancelledJobCount: result.cancelledJobCount,
+      processingJobCount: result.processingJobCount,
+    });
+
+    return NextResponse.json({
+      message: "Recurso removido.",
+      cancelledJobCount: result.cancelledJobCount,
+    });
+  } catch (error) {
+    log.error({
+      event: "resources.delete_error",
+      userId,
+      resourceId: id,
       error: error instanceof Error ? error.message : "Unknown error",
     });
 

@@ -1,10 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Loader2, Pencil } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { ResourceCard } from "@/components/media/resource-card";
+import {
+  ResourceTileGrid,
+  resourceToTileProps,
+} from "@/components/media/resource-tile";
+import { ResourceTileMenu } from "@/components/media/resource-tile-menu";
+import { SeriesDeleteDialog } from "@/components/series/series-delete-dialog";
 import { SeriesEditDrawer } from "@/components/series/series-edit-drawer";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,8 +24,10 @@ import { useSeriesDetail } from "@/hooks/use-series";
 import { truncateText } from "@/lib/utils";
 
 export function SeriesDetail({ id }: { id: string }) {
+  const router = useRouter();
   const { data: series, isLoading, isError } = useSeriesDetail(id);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -80,6 +88,14 @@ export function SeriesDetail({ id }: { id: string }) {
               Enviar para esta série
             </Link>
           </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="size-4" />
+            Excluir série
+          </Button>
         </div>
       </div>
 
@@ -107,11 +123,15 @@ export function SeriesDetail({ id }: { id: string }) {
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <ResourceTileGrid>
             {series.resources.map((resource) => (
-              <ResourceCard key={resource.id} resource={resource} hideSeries />
+              <ResourceTileMenu
+                key={resource.id}
+                tile={resourceToTileProps(resource)}
+                resource={resource}
+              />
             ))}
-          </div>
+          </ResourceTileGrid>
         )}
       </div>
 
@@ -119,6 +139,13 @@ export function SeriesDetail({ id }: { id: string }) {
         series={series}
         open={editOpen}
         onOpenChange={setEditOpen}
+      />
+
+      <SeriesDeleteDialog
+        series={series}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onDeleted={() => router.push("/series")}
       />
     </div>
   );

@@ -50,7 +50,7 @@ async function ensureTopology(channel: Channel) {
   globalForRabbit.rabbitTopologyReady = true;
 }
 
-async function getChannel() {
+export async function getRabbitChannel() {
   if (globalForRabbit.rabbitChannel) {
     return globalForRabbit.rabbitChannel;
   }
@@ -74,7 +74,7 @@ async function getChannel() {
 export async function publishMediaTranscodeJob(
   message: MediaTranscodeJobMessage,
 ) {
-  const channel = await getChannel();
+  const channel = await getRabbitChannel();
 
   const published = channel.publish(
     MEDIA_TRANSCODE_EXCHANGE,

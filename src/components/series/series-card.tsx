@@ -5,13 +5,16 @@ import {
   ChevronRight,
   MoreHorizontal,
   Pencil,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import { SeriesAddContentTile } from "@/components/series/series-add-content-tile";
+import { SeriesDeleteDialog } from "@/components/series/series-delete-dialog";
 import { SeriesEditDrawer } from "@/components/series/series-edit-drawer";
-import { SeriesResourceTile } from "@/components/series/series-resource-tile";
+import { resourceToTileProps } from "@/components/media/resource-tile";
+import { ResourceTileMenu } from "@/components/media/resource-tile-menu";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,6 +28,7 @@ import { cn, truncateText } from "@/lib/utils";
 export function SeriesCard({ series }: { series: SeriesListDto }) {
   const [expanded, setExpanded] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <>
@@ -74,6 +78,13 @@ export function SeriesCard({ series }: { series: SeriesListDto }) {
                 <Pencil className="size-4" />
                 Editar série
               </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="size-4" />
+                Excluir série
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -91,7 +102,11 @@ export function SeriesCard({ series }: { series: SeriesListDto }) {
           <div className="overflow-hidden">
             <div className="flex gap-4 overflow-x-auto px-4 pt-1 pb-4">
               {series.resources.map((resource) => (
-                <SeriesResourceTile key={resource.id} resource={resource} />
+                <ResourceTileMenu
+                  key={resource.id}
+                  tile={resourceToTileProps(resource)}
+                  resource={resource}
+                />
               ))}
               <SeriesAddContentTile seriesId={series.id} />
             </div>
@@ -103,6 +118,12 @@ export function SeriesCard({ series }: { series: SeriesListDto }) {
         series={series}
         open={editOpen}
         onOpenChange={setEditOpen}
+      />
+
+      <SeriesDeleteDialog
+        series={series}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
       />
     </>
   );

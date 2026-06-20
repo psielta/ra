@@ -11,8 +11,10 @@ import { useCreateSeries } from "@/hooks/use-series";
 
 export function SeriesForm({
   onCreated,
+  onCancel,
 }: {
   onCreated?: (id: string) => void;
+  onCancel?: () => void;
 }) {
   const createSeries = useCreateSeries();
   const [title, setTitle] = useState("");
@@ -67,16 +69,26 @@ export function SeriesForm({
         />
       </div>
 
-      <Button type="submit" disabled={!title.trim() || createSeries.isPending}>
-        {createSeries.isPending ? (
-          <>
-            <Loader2 className="size-4 animate-spin" />
-            Criando...
-          </>
-        ) : (
-          "Criar série"
-        )}
-      </Button>
+      <div className="flex flex-wrap gap-2 pt-2">
+        <Button
+          type="submit"
+          disabled={!title.trim() || createSeries.isPending}
+        >
+          {createSeries.isPending ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Criando...
+            </>
+          ) : (
+            "Criar série"
+          )}
+        </Button>
+        {onCancel ? (
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancelar
+          </Button>
+        ) : null}
+      </div>
     </form>
   );
 }

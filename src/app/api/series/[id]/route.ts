@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireSession } from "@/lib/api-auth";
 import { createRequestLogger } from "@/lib/logger";
+import { deleteSeriesWithResources } from "@/lib/media/delete-series";
 import { toResourceDto, toSeriesDto } from "@/lib/media/resource-mapper";
 import { prisma } from "@/lib/prisma";
 import { updateSeriesSchema } from "@/lib/validations/series";
@@ -123,23 +124,30 @@ export async function DELETE(_request: Request, context: RouteContext) {
   const { id } = await context.params;
 
   try {
-    const existing = await prisma.series.findFirst({
-      where: { id, userId },
-      select: { id: true },
-    });
+    const result = await deleteSeriesWithResources(userId, id);
 
-    if (!existing) {
+    if (!result) {
       return NextResponse.json(
         { message: "Série não encontrada" },
         { status: 404 },
       );
     }
 
-    await prisma.series.delete({ where: { id } });
+    log.info({
+      event: "series.deleted",
+      userId,
+      seriesId: id,
+      deletedResourceCount: result.deletedResourceCount,
+      deletedStorageKeys: result.deletedStorageKeys,
+      cancelledJobCount: result.cancelledJobCount,
+      processingJobCount: result.processingJobCount,
+    });
 
-    log.info({ event: "series.deleted", userId, seriesId: id });
-
-    return NextResponse.json({ message: "Série removida." });
+    return NextResponse.json({
+      message: "Série removida.",
+      deletedResourceCount: result.deletedResourceCount,
+      cancelledJobCount: result.cancelledJobCount,
+    });
   } catch (error) {
     log.error({
       event: "series.delete_error",

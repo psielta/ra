@@ -61,6 +61,25 @@ export function useUpdateResource(id: string) {
   });
 }
 
+export function useDeleteResource() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/resources/${id}`);
+      return id;
+    },
+    onSuccess: (_id, resourceId) => {
+      void queryClient.invalidateQueries({ queryKey: resourcesQueryKey });
+      void queryClient.removeQueries({
+        queryKey: [...resourcesQueryKey, resourceId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["series"] });
+      void queryClient.invalidateQueries({ queryKey: ["queue"] });
+    },
+  });
+}
+
 export function useUploadMedia() {
   const queryClient = useQueryClient();
 

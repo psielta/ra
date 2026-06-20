@@ -74,8 +74,13 @@ export function useDeleteSeries() {
       await api.delete(`/series/${id}`);
       return id;
     },
-    onSuccess: () => {
+    onSuccess: (_id, seriesId) => {
       void queryClient.invalidateQueries({ queryKey: seriesQueryKey });
+      void queryClient.removeQueries({
+        queryKey: [...seriesQueryKey, seriesId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["resources"] });
+      void queryClient.invalidateQueries({ queryKey: ["queue"] });
     },
   });
 }

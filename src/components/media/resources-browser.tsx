@@ -2,7 +2,11 @@
 
 import { useMemo, useState } from "react";
 
-import { ResourceCard } from "@/components/media/resource-card";
+import {
+  ResourceTileGrid,
+  resourceToTileProps,
+} from "@/components/media/resource-tile";
+import { ResourceTileMenu } from "@/components/media/resource-tile-menu";
 import { useResources } from "@/hooks/use-resources";
 import { useSeriesList } from "@/hooks/use-series";
 
@@ -59,11 +63,15 @@ export function ResourcesBrowser() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <ResourceTileGrid>
           {resources.map((resource) => (
-            <ResourceCard key={resource.id} resource={resource} />
+            <ResourceTileMenu
+              key={resource.id}
+              tile={resourceToTileProps(resource)}
+              resource={resource}
+            />
           ))}
-        </div>
+        </ResourceTileGrid>
       )}
     </div>
   );
