@@ -53,3 +53,5 @@ next-env.d.ts
 # cursor / local dev artifacts
 /terminals/
 /mcps/
+/test-fixtures/
+.playwright-mcp/

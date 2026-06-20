@@ -1,6 +1,7 @@
 "use client";
 
 import { LogOut, User } from "lucide-react";
+import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 
 import { MobileNav } from "@/components/admin/mobile-nav";
@@ -81,9 +82,11 @@ export function AdminHeader({ title = "Dashboard" }: AdminHeaderProps) {
               <p className="text-muted-foreground text-xs">{user?.email}</p>
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled>
-              <User />
-              Perfil
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/settings" className="cursor-pointer">
+                <User />
+                Perfil
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem

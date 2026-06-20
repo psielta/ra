@@ -5,7 +5,6 @@ import {
   Library,
   PanelLeftClose,
   PanelLeftOpen,
-  Settings,
   Upload,
 } from "lucide-react";
 import Link from "next/link";
@@ -38,11 +37,6 @@ const navItems = [
     title: "Enviar mídia",
     href: "/dashboard/upload",
     icon: Upload,
-  },
-  {
-    title: "Configurações",
-    href: "/dashboard/settings",
-    icon: Settings,
   },
 ];
 

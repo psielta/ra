@@ -14,7 +14,7 @@ export const metadata = {
 
 const steps = [
   "Você envia ou grava MP3/MP4",
-  "O arquivo vai para o storage (MinIO/S3)",
+  "O arquivo vai para o MinIO",
   "Um job entra na fila RabbitMQ",
   "O worker .NET converte com FFmpeg (vídeo → HLS)",
   "O progresso aparece em tempo real via Redis",
