@@ -87,7 +87,7 @@ export function NotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative cursor-pointer"
+          className="relative size-9 shrink-0 cursor-pointer"
           aria-label="Notificações"
         >
           <Bell className="size-5" />
