@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { FavoriteToggleButton } from "@/components/media/favorite-toggle-button";
 import { ResourceDeleteDialog } from "@/components/media/resource-delete-dialog";
 import { ResourcePlayer } from "@/components/media/resource-player";
 import { ResourceStatusBadge } from "@/components/media/resource-status-badge";
@@ -218,6 +219,12 @@ export function ResourceDetail({ id }: { id: string }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <FavoriteToggleButton
+            resource={resource}
+            variant="outline"
+            size="sm"
+            showLabel
+          />
           <ResourceStatusBadge
             status={resource.status}
             progress={resource.progress}

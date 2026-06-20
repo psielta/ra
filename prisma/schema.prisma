@@ -106,6 +106,7 @@ model Playlist {
   title       String
   slug        String
   description String?  @db.Text
+  isFavorites Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -114,6 +115,7 @@ model Playlist {
 
   @@unique([userId, slug])
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, isFavorites])
 }
 
 model PlaylistItem {

@@ -293,6 +293,7 @@ A base web e o **pipeline de midia end-to-end** estao implementados: upload/grav
 - [x] UI de mídia: `/resources`, `/resources/[id]`, `/series`, `/series/[id]`, `/playlists`, `/playlists/[id]`, `/queue`, `/dashboard/upload`
 - [x] Séries como coleções (preview de itens na listagem + edição em drawer)
 - [x] Playlists pessoais com reproducao sequencial no mini-player persistente
+- [x] Playlist especial `Favoritas` com botao de estrela nas rotas que exibem recursos
 - [x] Ações em lote na biblioteca: organizar em serie, adicionar a playlist e excluir selecionados
 - [x] Fila de processamento (`/queue`) com progresso live via Redis/SSE
 - [x] Player audio HLS via hls.js quando status `ready`

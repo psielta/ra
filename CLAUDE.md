@@ -4,7 +4,7 @@ Documentação de contexto para agentes Claude (Claude Code, Cursor, etc.) traba
 
 ## O que é este projeto
 
-**Ra** é um portfolio pessoal de **música (MP3 → HLS)** e **vídeo (MP4 → HLS)**. Pipeline atual: upload via Next.js → Storage (MinIO/S3) → fila RabbitMQ → worker .NET com FFmpeg → HLS no storage → Nginx → playback com hls.js. A biblioteca tem recursos, séries, playlists pessoais com reprodução sequencial, ações em lote e mini-player persistente. Progresso do job em tempo real via Redis pub/sub (padrão do `WorkerServiceBuscaPrecoIA`).
+**Ra** é um portfolio pessoal de **música (MP3 → HLS)** e **vídeo (MP4 → HLS)**. Pipeline atual: upload via Next.js → Storage (MinIO/S3) → fila RabbitMQ → worker .NET com FFmpeg → HLS no storage → Nginx → playback com hls.js. A biblioteca tem recursos, séries, playlists pessoais com reprodução sequencial, playlist especial `Favoritas` via estrela, ações em lote e mini-player persistente. Progresso do job em tempo real via Redis pub/sub (padrão do `WorkerServiceBuscaPrecoIA`).
 
 Idioma da UI e copy: **pt-BR**.
 

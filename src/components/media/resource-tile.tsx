@@ -4,6 +4,7 @@ import { Headphones, Play, Video } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { FavoriteToggleButton } from "@/components/media/favorite-toggle-button";
 import { ResourceStatusBadge } from "@/components/media/resource-status-badge";
 import type { QueueJobDto } from "@/lib/validations/queue";
 import type { ResourceDto } from "@/lib/validations/series";
@@ -111,6 +112,14 @@ export function ResourceTile({
           >
             <Play className="size-4 fill-current" />
           </button>
+        ) : null}
+
+        {resource ? (
+          <FavoriteToggleButton
+            resource={resource}
+            variant="secondary"
+            className="border-gold/20 bg-background/95 hover:bg-gold hover:text-background absolute right-2 bottom-2 z-30 rounded-full border shadow-sm"
+          />
         ) : null}
       </div>
 

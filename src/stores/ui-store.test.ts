@@ -17,6 +17,7 @@ function resource(id: string, title: string): ResourceDto {
     jobId: null,
     errorMessage: null,
     series: { id: "series-1", title: "Serie", slug: "serie" },
+    isFavorite: false,
     createdAt: "2026-06-20T00:00:00.000Z",
     updatedAt: "2026-06-20T00:00:00.000Z",
   };

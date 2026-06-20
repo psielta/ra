@@ -24,12 +24,14 @@ type E2EResource = {
   status: string;
   playbackUrl: string | null;
   coverUrl: string | null;
+  isFavorite: boolean;
   series: { id: string; title: string } | null;
 };
 
 type E2EPlaylist = {
   id: string;
   title: string;
+  isFavorites: boolean;
   itemCount: number;
   resources: E2EResource[];
 };
@@ -380,7 +382,7 @@ async function createPlaylistWithBulkAdd(page: Page, resources: E2EResource[]) {
   await page
     .getByLabel("Playlist para adicionar os selecionados")
     .selectOption(playlist.id);
-  await page.getByRole("button", { name: "Adicionar" }).click();
+  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
   await expect(page.getByText("Playlist atualizada")).toBeVisible({
     timeout: 15_000,
   });
@@ -412,6 +414,39 @@ async function createPlaylistWithBulkAdd(page: Page, resources: E2EResource[]) {
   ).toBeTruthy();
 
   return (await detailResponse.json()) as E2EPlaylist;
+}
+
+async function favoriteFromResources(page: Page, title: string) {
+  await page.goto("/resources");
+  await page
+    .getByRole("row")
+    .filter({ hasText: title })
+    .getByRole("button", { name: `Adicionar ${title} aos favoritos` })
+    .click();
+  await expect(page.getByText("Adicionado aos favoritos")).toBeVisible({
+    timeout: 15_000,
+  });
+
+  const playlistsResponse = await page.request.get("/api/playlists");
+  expect(
+    playlistsResponse.ok(),
+    `playlists API status ${playlistsResponse.status()}: ${await playlistsResponse.text()}`,
+  ).toBeTruthy();
+
+  const playlists = (await playlistsResponse.json()) as E2EPlaylist[];
+  const favorites = playlists.find((playlist) => playlist.isFavorites);
+
+  expect(favorites).toBeTruthy();
+  expect(favorites?.title).toBe("Favoritas");
+  expect(favorites?.itemCount).toBe(1);
+
+  await page.goto(`/playlists/${favorites?.id}`);
+  await expect(page.getByRole("heading", { name: "Favoritas" })).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(page.getByText(title)).toBeVisible();
+
+  return favorites as E2EPlaylist;
 }
 
 async function assertPersistentMiniPlayer(
@@ -489,8 +524,9 @@ async function assertPlaylistPlayback(page: Page, playlist: E2EPlaylist) {
 
   await page.goto("/playlists");
   await page
+    .locator("section")
+    .filter({ has: page.getByRole("link", { name: playlist.title }) })
     .getByRole("button", { name: "Reproduzir playlist" })
-    .first()
     .click();
   await expect(
     miniPlayer(page).filter({ hasText: playlist.title }),
@@ -556,6 +592,7 @@ test("processa MP3 e MP4 ate playback com lote e mini-player", async ({
 
   await renameResource(page, audio as E2EResource, "E2E audio MP3 renomeado");
   await renameResource(page, video as E2EResource, "E2E video MP4 renomeado");
+  await favoriteFromResources(page, "E2E audio MP3 renomeado");
   const series = await organizeInSeries(page, 2);
   const playlist = await createPlaylistWithBulkAdd(
     page,

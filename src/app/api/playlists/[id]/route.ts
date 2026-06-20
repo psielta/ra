@@ -6,6 +6,7 @@ import {
   toPlaylistDetailDto,
   toPlaylistDto,
 } from "@/lib/media/playlist-mapper";
+import { resourceAssetInclude } from "@/lib/media/resource-mapper";
 import { prisma } from "@/lib/prisma";
 import { updatePlaylistSchema } from "@/lib/validations/playlists";
 
@@ -27,21 +28,7 @@ export async function GET(_request: Request, context: RouteContext) {
       items: {
         orderBy: { position: "asc" },
         include: {
-          mediaAsset: {
-            include: {
-              series: { select: { id: true, title: true, slug: true } },
-              jobs: {
-                orderBy: { createdAt: "desc" },
-                take: 1,
-                select: {
-                  id: true,
-                  status: true,
-                  progress: true,
-                  errorMessage: true,
-                },
-              },
-            },
-          },
+          mediaAsset: { include: resourceAssetInclude },
         },
       },
     },
@@ -69,13 +56,20 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     const existing = await prisma.playlist.findFirst({
       where: { id, userId },
-      select: { id: true },
+      select: { id: true, isFavorites: true },
     });
 
     if (!existing) {
       return NextResponse.json(
         { message: "Playlist nao encontrada" },
         { status: 404 },
+      );
+    }
+
+    if (existing.isFavorites) {
+      return NextResponse.json(
+        { message: "A playlist Favoritas nao pode ser editada." },
+        { status: 400 },
       );
     }
 
@@ -126,16 +120,26 @@ export async function DELETE(_request: Request, context: RouteContext) {
   const { id } = await context.params;
 
   try {
-    const deleted = await prisma.playlist.deleteMany({
+    const playlist = await prisma.playlist.findFirst({
       where: { id, userId },
+      select: { id: true, isFavorites: true },
     });
 
-    if (deleted.count === 0) {
+    if (!playlist) {
       return NextResponse.json(
         { message: "Playlist nao encontrada" },
         { status: 404 },
       );
     }
+
+    if (playlist.isFavorites) {
+      return NextResponse.json(
+        { message: "A playlist Favoritas nao pode ser excluida." },
+        { status: 400 },
+      );
+    }
+
+    await prisma.playlist.delete({ where: { id } });
 
     log.info({ event: "playlists.deleted", userId, playlistId: id });
 

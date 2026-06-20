@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/axios";
+import type { RecentResourceDto } from "@/lib/validations/dashboard";
 import type { MediaUploadResponse } from "@/lib/validations/media";
 import type {
   BulkUpdateResourcesInput,
@@ -67,6 +68,56 @@ export function useUpdateResource(id: string) {
         queryKey: [...resourcesQueryKey, id],
       });
       void queryClient.invalidateQueries({ queryKey: ["series"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "recent"] });
+    },
+  });
+}
+
+function replaceResource<T extends ResourceDto>(
+  resource: T,
+  updated: ResourceDto,
+) {
+  return resource.id === updated.id
+    ? ({ ...resource, ...updated } as T)
+    : resource;
+}
+
+function replaceResourceCache(
+  oldData: ResourceDto[] | ResourceDto | undefined,
+  updated: ResourceDto,
+) {
+  if (!oldData) return oldData;
+
+  if (Array.isArray(oldData)) {
+    return oldData.map((resource) => replaceResource(resource, updated));
+  }
+
+  return replaceResource(oldData, updated);
+}
+
+export function useSetResourceFavorite(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (isFavorite: boolean) => {
+      const { data } = isFavorite
+        ? await api.put<ResourceDto>(`/resources/${id}/favorite`)
+        : await api.delete<ResourceDto>(`/resources/${id}/favorite`);
+
+      return data;
+    },
+    onSuccess: (resource) => {
+      queryClient.setQueriesData<ResourceDto[] | ResourceDto>(
+        { queryKey: resourcesQueryKey },
+        (oldData) => replaceResourceCache(oldData, resource),
+      );
+      queryClient.setQueriesData<RecentResourceDto[]>(
+        { queryKey: ["dashboard", "recent"] },
+        (oldData) =>
+          oldData?.map((item) => replaceResource(item, resource)) ?? oldData,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["series"] });
+      void queryClient.invalidateQueries({ queryKey: ["playlists"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard", "recent"] });
     },
   });

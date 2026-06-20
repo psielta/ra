@@ -64,6 +64,7 @@ export type PlaylistDto = {
   title: string;
   slug: string;
   description: string | null;
+  isFavorites: boolean;
   itemCount: number;
   createdAt: string;
   updatedAt: string;

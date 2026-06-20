@@ -102,6 +102,7 @@ export type ResourceDto = {
   jobId: string | null;
   errorMessage: string | null;
   series: { id: string; title: string; slug: string } | null;
+  isFavorite: boolean;
   createdAt: string;
   updatedAt: string;
 };

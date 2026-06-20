@@ -3,7 +3,11 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
 import { createRequestLogger } from "@/lib/logger";
 import { deleteSeriesWithResources } from "@/lib/media/delete-series";
-import { toResourceDto, toSeriesDto } from "@/lib/media/resource-mapper";
+import {
+  resourceAssetInclude,
+  toResourceDto,
+  toSeriesDto,
+} from "@/lib/media/resource-mapper";
 import { prisma } from "@/lib/prisma";
 import { updateSeriesSchema } from "@/lib/validations/series";
 
@@ -24,19 +28,7 @@ export async function GET(_request: Request, context: RouteContext) {
       _count: { select: { resources: true } },
       resources: {
         orderBy: { createdAt: "desc" },
-        include: {
-          series: { select: { id: true, title: true, slug: true } },
-          jobs: {
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: {
-              id: true,
-              status: true,
-              progress: true,
-              errorMessage: true,
-            },
-          },
-        },
+        include: resourceAssetInclude,
       },
     },
   });

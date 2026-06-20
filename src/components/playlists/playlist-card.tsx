@@ -6,6 +6,7 @@ import {
   MoreHorizontal,
   Pencil,
   Play,
+  Star,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -97,32 +98,36 @@ export function PlaylistCard({ playlist }: { playlist: PlaylistListDto }) {
             <Play className="size-4 fill-current" />
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-8 shrink-0"
-                aria-label="Opcoes da playlist"
-              >
-                <MoreHorizontal className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setEditOpen(true)}>
-                <Pencil className="size-4" />
-                Editar playlist
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 className="size-4" />
-                Excluir playlist
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {playlist.isFavorites ? (
+            <Star className="text-gold size-4 shrink-0 fill-current" />
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 shrink-0"
+                  aria-label="Opcoes da playlist"
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                  <Pencil className="size-4" />
+                  Editar playlist
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="size-4" />
+                  Excluir playlist
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           <Button asChild size="sm" className="shrink-0">
             <Link href={`/playlists/${playlist.id}`}>Ver todos</Link>

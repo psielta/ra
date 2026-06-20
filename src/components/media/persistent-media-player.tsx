@@ -19,6 +19,7 @@ import {
   type SyntheticEvent,
 } from "react";
 
+import { FavoriteToggleButton } from "@/components/media/favorite-toggle-button";
 import { Button } from "@/components/ui/button";
 import type { ResourceDto } from "@/lib/validations/series";
 import { useUiStore } from "@/stores/ui-store";
@@ -223,6 +224,7 @@ export function PersistentMediaPlayer() {
               <ExternalLink className="size-4" />
             </Link>
           </Button>
+          <FavoriteToggleButton resource={resource} />
           <Button
             type="button"
             size="icon"

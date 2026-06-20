@@ -1,4 +1,4 @@
-import type { MediaAsset, Series, TranscodeJob } from "@prisma/client";
+import type { MediaAsset, Prisma, Series } from "@prisma/client";
 
 import type {
   ResourceDto,
@@ -7,10 +7,28 @@ import type {
   SeriesListDto,
 } from "@/lib/validations/series";
 
-type AssetWithRelations = MediaAsset & {
-  series: Pick<Series, "id" | "title" | "slug"> | null;
-  jobs: Pick<TranscodeJob, "id" | "status" | "progress" | "errorMessage">[];
-};
+export const resourceAssetInclude = {
+  series: { select: { id: true, title: true, slug: true } },
+  jobs: {
+    orderBy: { createdAt: "desc" },
+    take: 1,
+    select: {
+      id: true,
+      status: true,
+      progress: true,
+      errorMessage: true,
+    },
+  },
+  playlistItems: {
+    where: { playlist: { isFavorites: true } },
+    select: { id: true },
+    take: 1,
+  },
+} satisfies Prisma.MediaAssetInclude;
+
+export type AssetWithRelations = Prisma.MediaAssetGetPayload<{
+  include: typeof resourceAssetInclude;
+}>;
 
 function toResourceStatus(
   status: AssetWithRelations["jobs"][number]["status"] | undefined,
@@ -45,6 +63,7 @@ export function toResourceDto(asset: AssetWithRelations): ResourceDto {
     jobId: latestJob?.id ?? null,
     errorMessage: latestJob?.errorMessage ?? null,
     series: asset.series,
+    isFavorite: asset.playlistItems.length > 0,
     createdAt: asset.createdAt.toISOString(),
     updatedAt: asset.updatedAt.toISOString(),
   };

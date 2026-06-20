@@ -3,32 +3,15 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
 import { createRequestLogger } from "@/lib/logger";
 import { toPlaylistDto, toPlaylistListDto } from "@/lib/media/playlist-mapper";
+import { resolveUniquePlaylistSlug } from "@/lib/media/playlists";
+import { resourceAssetInclude } from "@/lib/media/resource-mapper";
 import { prisma } from "@/lib/prisma";
 import {
   createPlaylistSchema,
   PLAYLIST_PREVIEW_LIMIT,
-  slugifyPlaylistTitle,
 } from "@/lib/validations/playlists";
 
 const playlistLogger = createRequestLogger({ module: "playlists" });
-
-async function resolveUniquePlaylistSlug(userId: string, title: string) {
-  const base = slugifyPlaylistTitle(title);
-  let slug = base;
-  let suffix = 2;
-
-  while (
-    await prisma.playlist.findUnique({
-      where: { userId_slug: { userId, slug } },
-      select: { id: true },
-    })
-  ) {
-    slug = `${base}-${suffix}`;
-    suffix += 1;
-  }
-
-  return slug;
-}
 
 export async function GET() {
   const authResult = await requireSession();
@@ -38,28 +21,14 @@ export async function GET() {
 
   const playlists = await prisma.playlist.findMany({
     where: { userId },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ isFavorites: "desc" }, { createdAt: "desc" }],
     include: {
       _count: { select: { items: true } },
       items: {
         orderBy: { position: "asc" },
         take: PLAYLIST_PREVIEW_LIMIT,
         include: {
-          mediaAsset: {
-            include: {
-              series: { select: { id: true, title: true, slug: true } },
-              jobs: {
-                orderBy: { createdAt: "desc" },
-                take: 1,
-                select: {
-                  id: true,
-                  status: true,
-                  progress: true,
-                  errorMessage: true,
-                },
-              },
-            },
-          },
+          mediaAsset: { include: resourceAssetInclude },
         },
       },
     },

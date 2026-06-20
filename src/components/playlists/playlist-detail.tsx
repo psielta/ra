@@ -12,6 +12,7 @@ import {
   Pencil,
   Play,
   Plus,
+  Star,
   Trash2,
   Video,
 } from "lucide-react";
@@ -20,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { FavoriteToggleButton } from "@/components/media/favorite-toggle-button";
 import { PlaylistDeleteDialog } from "@/components/playlists/playlist-delete-dialog";
 import { PlaylistEditDrawer } from "@/components/playlists/playlist-edit-drawer";
 import { Button } from "@/components/ui/button";
@@ -184,12 +186,17 @@ export function PlaylistDetail({ id }: { id: string }) {
 
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <h2
-            className="font-display text-2xl tracking-wide"
-            title={playlist.title}
-          >
-            {truncateText(playlist.title)}
-          </h2>
+          <div className="flex min-w-0 items-center gap-2">
+            {playlist.isFavorites ? (
+              <Star className="text-gold size-5 shrink-0 fill-current" />
+            ) : null}
+            <h2
+              className="font-display text-2xl tracking-wide"
+              title={playlist.title}
+            >
+              {truncateText(playlist.title)}
+            </h2>
+          </div>
           <p className="text-muted-foreground mt-1 text-sm">
             {playlist.itemCount} {playlist.itemCount === 1 ? "item" : "itens"}
           </p>
@@ -209,22 +216,26 @@ export function PlaylistDetail({ id }: { id: string }) {
             <Play className="size-4 fill-current" />
             Reproduzir playlist
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setEditOpen(true)}
-          >
-            <Pencil className="size-4" />
-            Editar
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={() => setDeleteOpen(true)}
-          >
-            <Trash2 className="size-4" />
-            Excluir
-          </Button>
+          {!playlist.isFavorites ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditOpen(true)}
+              >
+                <Pencil className="size-4" />
+                Editar
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="size-4" />
+                Excluir
+              </Button>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -266,6 +277,7 @@ export function PlaylistDetail({ id }: { id: string }) {
                 </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-2">
+                  <FavoriteToggleButton resource={resource} />
                   <Button
                     type="button"
                     size="icon"
@@ -350,6 +362,7 @@ export function PlaylistDetail({ id }: { id: string }) {
                   <Plus className="size-4" />
                   Adicionar
                 </Button>
+                <FavoriteToggleButton resource={resource} />
               </div>
             ))}
           </div>

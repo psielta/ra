@@ -1,26 +1,18 @@
-import type {
-  MediaAsset,
-  Playlist,
-  PlaylistItem,
-  Series,
-  TranscodeJob,
-} from "@prisma/client";
+import type { Playlist, PlaylistItem } from "@prisma/client";
 
-import { toResourceDto } from "@/lib/media/resource-mapper";
+import {
+  type AssetWithRelations,
+  toResourceDto,
+} from "@/lib/media/resource-mapper";
 import type {
   PlaylistDetailDto,
   PlaylistDto,
   PlaylistListDto,
 } from "@/lib/validations/playlists";
 
-type PlaylistResource = MediaAsset & {
-  series: Pick<Series, "id" | "title" | "slug"> | null;
-  jobs: Pick<TranscodeJob, "id" | "status" | "progress" | "errorMessage">[];
-};
-
 type PlaylistWithItems = Playlist & {
   _count?: { items: number };
-  items: Array<PlaylistItem & { mediaAsset: PlaylistResource }>;
+  items: Array<PlaylistItem & { mediaAsset: AssetWithRelations }>;
 };
 
 export function toPlaylistDto(
@@ -32,6 +24,7 @@ export function toPlaylistDto(
     title: playlist.title,
     slug: playlist.slug,
     description: playlist.description,
+    isFavorites: playlist.isFavorites,
     itemCount: itemCount ?? playlist._count?.items ?? 0,
     createdAt: playlist.createdAt.toISOString(),
     updatedAt: playlist.updatedAt.toISOString(),

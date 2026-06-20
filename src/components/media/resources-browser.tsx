@@ -26,6 +26,7 @@ import {
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table/data-table";
+import { FavoriteToggleButton } from "@/components/media/favorite-toggle-button";
 import { ResourceStatusBadge } from "@/components/media/resource-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -276,6 +277,7 @@ export function ResourcesBrowser() {
 
           return (
             <div className="flex justify-end gap-2">
+              <FavoriteToggleButton resource={resource} />
               <Button
                 type="button"
                 size="sm"

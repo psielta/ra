@@ -1,4 +1,7 @@
-import { toResourceDto } from "@/lib/media/resource-mapper";
+import {
+  resourceAssetInclude,
+  toResourceDto,
+} from "@/lib/media/resource-mapper";
 import { prisma } from "@/lib/prisma";
 import type { RecentResourceDto } from "@/lib/validations/dashboard";
 
@@ -14,19 +17,7 @@ export async function getRecentResources(
     take: limit,
     include: {
       mediaAsset: {
-        include: {
-          series: { select: { id: true, title: true, slug: true } },
-          jobs: {
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: {
-              id: true,
-              status: true,
-              progress: true,
-              errorMessage: true,
-            },
-          },
-        },
+        include: resourceAssetInclude,
       },
     },
   });

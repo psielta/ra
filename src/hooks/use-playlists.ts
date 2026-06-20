@@ -107,6 +107,9 @@ export function useAddPlaylistItems() {
       void queryClient.invalidateQueries({
         queryKey: [...playlistsQueryKey, variables.playlistId],
       });
+      void queryClient.invalidateQueries({ queryKey: ["resources"] });
+      void queryClient.invalidateQueries({ queryKey: ["series"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "recent"] });
     },
   });
 }
@@ -127,6 +130,9 @@ export function useReorderPlaylistItems(id: string) {
       void queryClient.invalidateQueries({
         queryKey: [...playlistsQueryKey, id],
       });
+      void queryClient.invalidateQueries({ queryKey: ["resources"] });
+      void queryClient.invalidateQueries({ queryKey: ["series"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "recent"] });
     },
   });
 }

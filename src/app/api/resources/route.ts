@@ -4,7 +4,10 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
 import { createRequestLogger } from "@/lib/logger";
 import { purgeResources } from "@/lib/media/delete-helpers";
-import { toResourceDto } from "@/lib/media/resource-mapper";
+import {
+  resourceAssetInclude,
+  toResourceDto,
+} from "@/lib/media/resource-mapper";
 import { prisma } from "@/lib/prisma";
 import {
   bulkDeleteResourcesSchema,
@@ -42,19 +45,7 @@ export async function GET(request: Request) {
         : {}),
     },
     orderBy: { createdAt: "desc" },
-    include: {
-      series: { select: { id: true, title: true, slug: true } },
-      jobs: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: {
-          id: true,
-          status: true,
-          progress: true,
-          errorMessage: true,
-        },
-      },
-    },
+    include: resourceAssetInclude,
   });
 
   return NextResponse.json(assets.map(toResourceDto));

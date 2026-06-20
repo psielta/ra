@@ -4,7 +4,10 @@ import { requireSession } from "@/lib/api-auth";
 import { createRequestLogger } from "@/lib/logger";
 import { deleteMediaResource } from "@/lib/media/delete-resource";
 import { recordMediaAccess } from "@/lib/media/record-access";
-import { toResourceDto } from "@/lib/media/resource-mapper";
+import {
+  resourceAssetInclude,
+  toResourceDto,
+} from "@/lib/media/resource-mapper";
 import { prisma } from "@/lib/prisma";
 import { updateResourceSchema } from "@/lib/validations/series";
 
@@ -21,19 +24,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const asset = await prisma.mediaAsset.findFirst({
     where: { id, userId },
-    include: {
-      series: { select: { id: true, title: true, slug: true } },
-      jobs: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: {
-          id: true,
-          status: true,
-          progress: true,
-          errorMessage: true,
-        },
-      },
-    },
+    include: resourceAssetInclude,
   });
 
   if (!asset) {
@@ -111,19 +102,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         description: parsed.data.description,
         seriesId: parsed.data.seriesId,
       },
-      include: {
-        series: { select: { id: true, title: true, slug: true } },
-        jobs: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: {
-            id: true,
-            status: true,
-            progress: true,
-            errorMessage: true,
-          },
-        },
-      },
+      include: resourceAssetInclude,
     });
 
     log.info({ event: "resources.updated", userId, resourceId: id });

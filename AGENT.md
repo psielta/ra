@@ -524,6 +524,7 @@ Pipeline de mídia concluído:
 - [x] Monitor visual dos segmentos HLS recebidos no player
 - [x] Biblioteca de recursos, séries, playlists, fila de processamento e gravação MediaRecorder
 - [x] Playlists pessoais com reproducao sequencial no mini-player persistente
+- [x] Playlist especial `Favoritas` com botao de estrela em cards, tabelas, detalhe e mini-player
 - [x] Ações em lote em `/resources`: organizar em serie, adicionar a playlist e excluir selecionados
 - [x] Cover automático de vídeo gerado pelo worker
 - [x] Upload em drawer global para não sair da rota atual

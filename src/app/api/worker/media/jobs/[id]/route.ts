@@ -4,7 +4,10 @@ import { TranscodeJobStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import { createRequestLogger } from "@/lib/logger";
-import { toResourceDto } from "@/lib/media/resource-mapper";
+import {
+  resourceAssetInclude,
+  toResourceDto,
+} from "@/lib/media/resource-mapper";
 import { prisma } from "@/lib/prisma";
 import { publishNotification } from "@/lib/realtime/notifications";
 import { workerJobUpdateSchema } from "@/lib/validations/worker-callback";
@@ -111,19 +114,7 @@ export async function PATCH(request: Request, context: RouteContext) {
               coverUrl: update.coverUrl,
               durationSec: update.durationSec,
             },
-            include: {
-              series: { select: { id: true, title: true, slug: true } },
-              jobs: {
-                orderBy: { createdAt: "desc" },
-                take: 1,
-                select: {
-                  id: true,
-                  status: true,
-                  progress: true,
-                  errorMessage: true,
-                },
-              },
-            },
+            include: resourceAssetInclude,
           }),
         ])
       : [
@@ -138,19 +129,7 @@ export async function PATCH(request: Request, context: RouteContext) {
           }),
           await prisma.mediaAsset.findUniqueOrThrow({
             where: { id: existing.mediaAssetId },
-            include: {
-              series: { select: { id: true, title: true, slug: true } },
-              jobs: {
-                orderBy: { createdAt: "desc" },
-                take: 1,
-                select: {
-                  id: true,
-                  status: true,
-                  progress: true,
-                  errorMessage: true,
-                },
-              },
-            },
+            include: resourceAssetInclude,
           }),
         ];
 

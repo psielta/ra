@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 
 import { requireSession } from "@/lib/api-auth";
 import { createRequestLogger } from "@/lib/logger";
-import { toSeriesDto, toSeriesListDto } from "@/lib/media/resource-mapper";
+import {
+  resourceAssetInclude,
+  toSeriesDto,
+  toSeriesListDto,
+} from "@/lib/media/resource-mapper";
 import { prisma } from "@/lib/prisma";
 import {
   createSeriesSchema,
@@ -44,19 +48,7 @@ export async function GET() {
       resources: {
         orderBy: { createdAt: "desc" },
         take: SERIES_PREVIEW_LIMIT,
-        include: {
-          series: { select: { id: true, title: true, slug: true } },
-          jobs: {
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: {
-              id: true,
-              status: true,
-              progress: true,
-              errorMessage: true,
-            },
-          },
-        },
+        include: resourceAssetInclude,
       },
     },
   });

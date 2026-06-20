@@ -71,6 +71,7 @@ function readyVideoResource(): ResourceDto {
     jobId: "job-1",
     errorMessage: null,
     series: null,
+    isFavorite: false,
     createdAt: "2026-06-20T00:00:00.000Z",
     updatedAt: "2026-06-20T00:00:00.000Z",
   };
