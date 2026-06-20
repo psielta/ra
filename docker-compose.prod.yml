@@ -1,0 +1,20 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "14001:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ra?schema=public
+      AUTH_URL: http://localhost:14001
+      NEXT_PUBLIC_APP_URL: http://localhost:14001
+      PORT: "3000"
+      NODE_ENV: production
+    volumes: []
+    depends_on:
+      postgres:
+        condition: service_healthy

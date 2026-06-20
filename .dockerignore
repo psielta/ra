@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env*.local
+coverage
+test-results
+playwright-report
+blob-report
+*.md
+.husky
+mcps
+terminals

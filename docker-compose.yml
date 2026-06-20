@@ -1,0 +1,51 @@
+name: ra
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ra-postgres
+    restart: unless-stopped
+    ports:
+      - "14002:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ra
+    volumes:
+      - ra_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ra"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: ra-app
+    restart: unless-stopped
+    ports:
+      - "14001:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ra?schema=public
+      AUTH_URL: http://localhost:14001
+      NEXT_PUBLIC_APP_URL: http://localhost:14001
+      PORT: "3000"
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - .:/app
+      - ra_node_modules:/app/node_modules
+      - ra_next_cache:/app/.next
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh docker/entrypoint.dev.sh
+
+volumes:
+  ra_postgres_data:
+  ra_node_modules:
+  ra_next_cache:
