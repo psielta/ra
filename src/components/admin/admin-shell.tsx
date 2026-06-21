@@ -28,12 +28,12 @@ export function AdminShell({ children, title }: AdminShellProps) {
 
           <div
             className={cn(
-              "flex min-h-svh flex-1 flex-col transition-all duration-300",
+              "flex min-h-svh min-w-0 flex-1 flex-col transition-all duration-300",
               sidebarCollapsed ? "lg:pl-[68px]" : "lg:pl-64",
             )}
           >
             <AdminHeader title={title} />
-            <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+            <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
           </div>
 
           <MediaUploadDrawer />

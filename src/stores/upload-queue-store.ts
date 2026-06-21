@@ -23,6 +23,7 @@ type UploadQueueStore = {
   addItems: (items: UploadQueueItem[]) => void;
   markQueued: (id: string) => void;
   markUploading: (id: string) => void;
+  setUploadProgress: (id: string, progress: number) => void;
   markDone: (id: string, mediaAssetId: string) => void;
   markError: (id: string, error: string) => void;
   removeItem: (id: string) => void;
@@ -50,6 +51,10 @@ function patchItem(
   return items.map((item) =>
     item.id === id ? { ...item, ...patch, updatedAt: nowIso() } : item,
   );
+}
+
+function clampProgress(progress: number) {
+  return Math.min(100, Math.max(0, Math.round(progress)));
 }
 
 export function createQueuedUploadItem(input: {
@@ -115,8 +120,14 @@ export const useUploadQueueStore = create<UploadQueueStore>()(
         set((state) => ({
           items: patchItem(state.items, id, {
             status: "uploading",
-            progress: 10,
+            progress: 0,
             error: null,
+          }),
+        })),
+      setUploadProgress: (id, progress) =>
+        set((state) => ({
+          items: patchItem(state.items, id, {
+            progress: clampProgress(progress),
           }),
         })),
       markDone: (id, mediaAssetId) =>

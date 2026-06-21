@@ -27,7 +27,7 @@ export default async function DashboardPage() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8">
       <div className="border-gold/20 from-lapis/10 via-background to-gold/5 relative overflow-hidden rounded-xl border bg-gradient-to-br p-6 sm:p-8">
         <div className="sun-disk pointer-events-none absolute -top-8 -right-8 size-32 opacity-30" />
         <div className="relative space-y-4">

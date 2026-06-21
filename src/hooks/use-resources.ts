@@ -1,5 +1,6 @@
 "use client";
 
+import type { AxiosProgressEvent } from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/axios";
@@ -191,6 +192,7 @@ export function useUploadMedia() {
       title?: string;
       description?: string;
       seriesId?: string;
+      onProgress?: (progress: number) => void;
     }) => {
       const formData = new FormData();
       formData.append("file", input.file);
@@ -198,11 +200,23 @@ export function useUploadMedia() {
       if (input.description) formData.append("description", input.description);
       if (input.seriesId) formData.append("seriesId", input.seriesId);
 
+      const handleProgress = (event: AxiosProgressEvent) => {
+        if (event.total) {
+          input.onProgress?.((100 * event.loaded) / event.total);
+          return;
+        }
+
+        if (typeof event.progress === "number") {
+          input.onProgress?.(event.progress * 100);
+        }
+      };
+
       const { data } = await api.post<MediaUploadResponse>(
         "/media/upload",
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: handleProgress,
         },
       );
 

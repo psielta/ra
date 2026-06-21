@@ -36,6 +36,9 @@ export function UploadQueueRunner() {
   );
   const markQueued = useUploadQueueStore((state) => state.markQueued);
   const markUploading = useUploadQueueStore((state) => state.markUploading);
+  const setUploadProgress = useUploadQueueStore(
+    (state) => state.setUploadProgress,
+  );
   const markDone = useUploadQueueStore((state) => state.markDone);
   const markError = useUploadQueueStore((state) => state.markError);
   const resetInterruptedUploads = useUploadQueueStore(
@@ -86,6 +89,8 @@ export function UploadQueueRunner() {
             const result = await uploadMedia.mutateAsync({
               file,
               seriesId: nextQueuedItem.seriesId ?? undefined,
+              onProgress: (progress) =>
+                setUploadProgress(nextQueuedItem.id, progress),
             });
 
             await deleteUploadFile(nextQueuedItem.id);
@@ -124,6 +129,7 @@ export function UploadQueueRunner() {
     markError,
     markQueued,
     markUploading,
+    setUploadProgress,
     queuedCount,
     uploadMedia,
   ]);

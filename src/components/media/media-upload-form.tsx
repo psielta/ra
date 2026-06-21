@@ -390,9 +390,16 @@ export function MediaUploadForm({ defaultSeriesId }: MediaUploadFormProps) {
                       {item.fileName}
                     </p>
                     {item.status === "uploading" ? (
-                      <div className="bg-muted h-1.5 overflow-hidden rounded-full">
+                      <div
+                        className="bg-muted h-1.5 overflow-hidden rounded-full"
+                        role="progressbar"
+                        aria-label={`Progresso de upload de ${item.fileName}`}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={item.progress}
+                      >
                         <div
-                          className="bg-gold h-full transition-all"
+                          className="bg-gold h-full min-w-3 animate-pulse transition-all duration-300 ease-out"
                           style={{ width: `${item.progress}%` }}
                         />
                       </div>

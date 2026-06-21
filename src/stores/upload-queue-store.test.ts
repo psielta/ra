@@ -23,7 +23,7 @@ describe("useUploadQueueStore", () => {
     expect(useUploadQueueStore.getState().items[0]).toMatchObject({
       id: item.id,
       status: "uploading",
-      progress: 10,
+      progress: 0,
     });
 
     useUploadQueueStore.getState().resetInterruptedUploads();
@@ -33,6 +33,24 @@ describe("useUploadQueueStore", () => {
       status: "queued",
       progress: 0,
     });
+  });
+
+  it("atualiza progresso do upload em andamento", () => {
+    const item = createQueuedUploadItem({ file: createFile("progress.mp3") });
+
+    useUploadQueueStore.getState().addItems([item]);
+    useUploadQueueStore.getState().markUploading(item.id);
+    useUploadQueueStore.getState().setUploadProgress(item.id, 42.6);
+
+    expect(useUploadQueueStore.getState().items[0]).toMatchObject({
+      id: item.id,
+      status: "uploading",
+      progress: 43,
+    });
+
+    useUploadQueueStore.getState().setUploadProgress(item.id, 120);
+
+    expect(useUploadQueueStore.getState().items[0]?.progress).toBe(100);
   });
 
   it("recoloca erro retryable na fila", () => {

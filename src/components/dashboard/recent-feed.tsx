@@ -43,7 +43,7 @@ export function RecentFeed() {
   }
 
   return (
-    <section className="space-y-4">
+    <section className="max-w-full min-w-0 space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h3 className="font-display text-lg tracking-wide">
@@ -58,7 +58,7 @@ export function RecentFeed() {
         </Button>
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-2">
+      <div className="flex max-w-full gap-4 overflow-x-auto overscroll-x-contain pb-2">
         {items.map((item) => (
           <div key={item.id} className="w-36 shrink-0">
             <ResourceTile {...resourceToTileProps(item)} />
